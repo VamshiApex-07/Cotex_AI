@@ -3,6 +3,9 @@ import dotenv from "dotenv"
 import proxy from "express-http-proxy"
 import cors from "cors"
 import cookieParser from "cookie-parser"
+import protect from "./middleware/auth.middleware.js"
+import { getCurrentUser } from "./controllers/user.controller.js"
+
 dotenv.config()
 
 const PORT = process.env.PORT
@@ -13,8 +16,8 @@ app.use(cors({
     credentials:true
 }))
 app.use(cookieParser())
-app.use('/auth',proxy(process.env.AUTH_SERVICE))
-
+app.use('/api/auth',proxy(process.env.AUTH_SERVICE))
+app.get("/api/me",protect,getCurrentUser)
 app.get("/",(req,res)=>{
     res.json({message:"Hello from Gateway"});
 })
