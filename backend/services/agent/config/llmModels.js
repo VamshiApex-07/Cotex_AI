@@ -19,8 +19,6 @@ export const getModel=async (agent)=>{
            return groq;
         case "coding": 
            return gemini; 
-          
-    
         default:
             return groq;
     }
