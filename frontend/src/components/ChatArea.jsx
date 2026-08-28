@@ -13,7 +13,11 @@ function ChatArea() {
   const getMesg=async () => {
     
     if(selectedConversation){
-      if(selectedConversation.title=="New Chat")return;
+      if(selectedConversation.title=="New Chat"){
+        dispatch(setMessages([]))
+        dispatch(setArtifacts([]))
+        return;
+      }
 const data=await getMessages(selectedConversation?._id)
 console.log(data)
       dispatch(setMessages(data))
