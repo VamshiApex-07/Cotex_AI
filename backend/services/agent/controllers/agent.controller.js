@@ -5,11 +5,13 @@ import { graph } from "../graph/graph.js"
 export const agent=async (req,res,next) => {
     try {
         const userId=req.headers["x-user-id"]
+        const { conversationId, prompt, agent: agentType } = req.body
+        const file=req.file
         await axios.post(`${process.env.CHAT_SERVICE}/save-message`,{
             conversationId,role:"user",content:prompt
         })
         const result=await graph.invoke({
-            prompt,conversationId,agent,userId,file
+            prompt,conversationId,agent:agentType,userId,file
         })
         console.log("result",result)
         await axios.post(`${process.env.CHAT_SERVICE}/save-message`,{
