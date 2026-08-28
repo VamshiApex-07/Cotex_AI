@@ -56,10 +56,10 @@ Answer the user using only the above search results.
     ]
 
     history.forEach(msg => {
+        if (!msg || msg.content == null) return
         if (msg.role == "user") {
             messages.push(new HumanMessage(msg.content))
-        }
-        if (msg.role == "assistant") {
+        } else if (msg.role == "assistant") {
             messages.push(new AIMessage(msg.content))
         }
     });
