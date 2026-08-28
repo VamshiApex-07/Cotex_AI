@@ -18,16 +18,19 @@ export const agent=async (req,res,next) => {
         })
         console.log("result",result)
        await addMessage(conversationId,"user",prompt)
-        if(result?.aiResponse!=null){
-        await addMessage(conversationId,"assistant",result.aiResponse)
+        const answer = result?.aiResponse != null
+            ? result.aiResponse
+            : "This agent isn't available yet. Try a different agent or switch it to Auto."
+        const images = result?.images || []
+        const artifacts = result?.artifacts || []
+        await addMessage(conversationId,"assistant",answer)
         await axios.post(`${process.env.CHAT_SERVICE}/save-message`,{
-            conversationId,role:"assistant",content:result?.aiResponse,images:result?.images,artifacts:result?.artifacts
+            conversationId,role:"assistant",content:answer,images,artifacts
         })
-        }
         return res.status(200).json({
-            answer:result?.aiResponse,
-            images:result?.images,
-            artifacts:result?.artifacts
+            answer,
+            images,
+            artifacts
         })
        
     } catch (error) {

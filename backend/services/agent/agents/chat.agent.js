@@ -8,10 +8,10 @@ export const chatAgent = async (state) => {
 
     try {
 
-
          const llm = await getModel("chat")
 
     const history = await getMemory(state.conversationId)
+    const recentHistory = (history || []).slice(-8)
 
    const searchContext=state.searchResults?`
    Web Search Results:
@@ -55,7 +55,7 @@ Answer the user using only the above search results.
         new SystemMessage(systemPrompt)
     ]
 
-    history.forEach(msg => {
+    recentHistory.forEach(msg => {
         if (!msg || msg.content == null) return
         if (msg.role == "user") {
             messages.push(new HumanMessage(msg.content))
