@@ -19,8 +19,10 @@ DOCUMENTATION
 User Request:
 ${state.prompt}
     `)
-    const intent=intentRes.content
-    if(intent=="CODE_GENERATION"){
+    const intent=(Array.isArray(intentRes.content)
+        ? intentRes.content.map(part=>typeof part==="string"?part:part?.text||"").join("")
+        : String(intentRes.content||"")).trim().toUpperCase()
+    if(intent.includes("CODE_GENERATION")){
         const prompt=`
         You are CortexAI Coding Agent.
 
