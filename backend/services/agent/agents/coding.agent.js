@@ -8,7 +8,8 @@ try {
 
 Return ONLY one of these values.
 
-CODE_GENERATION
+PROJECT_GENERATION
+PROGRAM_GENERATION
 CODE_REVIEW
 CODE_EXPLANATION
 DEBUGGING
@@ -16,13 +17,40 @@ OPTIMIZATION
 CONVERSION
 DOCUMENTATION
 
+Rule: 
+- Use PROJECT_GENERATION for web apps, UIs, interactive web pages, or explicit "project" requests.
+- Use PROGRAM_GENERATION for basic algorithmic problems, simple logic, or "write a program" requests.
+
 User Request:
 ${state.prompt}
     `)
     const intent=(Array.isArray(intentRes.content)
         ? intentRes.content.map(part=>typeof part==="string"?part:part?.text||"").join("")
         : String(intentRes.content||"")).trim().toUpperCase()
-    if(intent.includes("CODE_GENERATION")){
+    if(intent.includes("PROGRAM_GENERATION")){
+        const res=await llm.invoke(`
+        You are CortexAI Coding Agent.
+        
+        The user wants a basic program, algorithmic solution, or simple logic.
+        
+        Rules:
+        - Output the code block directly in the chat response using Markdown.
+        - Default Language: Use C++ unless the user explicitly specifies another language (like Python, Java, etc.).
+        - Do NOT generate HTML, CSS, JavaScript, or web artifacts for these basic program requests.
+        - Provide a brief explanation of the code.
+        
+        User Request:
+        ${state.prompt}
+        `)
+        
+        return {
+            ...state,
+            aiResponse: res.content,
+            artifacts: []
+        }
+    }
+
+    if(intent.includes("PROJECT_GENERATION") || intent.includes("CODE_GENERATION")){
         const prompt=`
         You are CortexAI Coding Agent.
 
@@ -49,9 +77,10 @@ Rules:
 IMAGES
 =========================
 
-Always use real Unsplash images.
-
-Never use placeholders.
+CRITICAL: DO NOT use Unsplash URLs (images.unsplash.com or source.unsplash.com) as they will 404 or block iframes.
+Instead, strictly use: https://image.pollinations.ai/prompt/{description}
+Replace {description} with a detailed, URL-encoded description of the image (e.g., https://image.pollinations.ai/prompt/beautiful%20santorini%20greece%20sunset).
+This ensures 100% reliable rendering inside the preview/sandbox iframe.
 
 Return ONLY valid JSON.
 
@@ -96,7 +125,7 @@ ${state.prompt}
         
         return {
             ...state,
-            aiResponse:"Code Generated Successfully.",
+            aiResponse:"Project Generated Successfully.",
             artifacts:[
                 {
                     id:Date.now(),
