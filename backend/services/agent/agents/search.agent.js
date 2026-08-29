@@ -1,14 +1,14 @@
 import { searchTool } from "../config/tavily.js"
+import { slimSearchResults } from "../utils/slimSearchResults.js"
 export const searchAgent = async (state) => {
     try {
         const results = await searchTool.invoke({
             query: state.prompt
         })
-        console.log(results)
         return {
             ...state,
-            searchResults: results,
-            images: results.images
+            searchResults: slimSearchResults(results),
+            images: results?.images || []
         }
     } catch (error) {
         console.log(error)

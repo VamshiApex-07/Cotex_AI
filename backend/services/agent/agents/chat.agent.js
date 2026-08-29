@@ -2,6 +2,27 @@ import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages
 import { getModel } from "../config/llmModels.js"
 import { getMemory } from "../config/memory.js"
 
+const MAX_INPUT_CHARS = 14000
+const MAX_MESSAGE_CHARS = 2500
+
+const fitWithinBudget = (messages) => {
+    let total = messages.reduce((sum, m) => sum + String(m.content).length, 0)
+    if (total <= MAX_INPUT_CHARS) return messages
+
+    while (total > MAX_INPUT_CHARS && messages.length > 2) {
+        const removed = messages.splice(1, 1)[0]
+        total -= String(removed.content).length
+    }
+
+    if (total <= MAX_INPUT_CHARS) return messages
+
+    return messages.map((m) => {
+        const content = String(m.content)
+        if (content.length <= MAX_MESSAGE_CHARS) return m
+        return new m.constructor(content.slice(0, MAX_MESSAGE_CHARS) + "\n...[truncated]")
+    })
+}
+
 export const chatAgent = async (state) => {
 
    
@@ -70,7 +91,9 @@ Answer the user using only the above search results.
 
 
 
-    const response = await llm.invoke(messages)
+    const boundedMessages = fitWithinBudget(messages)
+
+    const response = await llm.invoke(boundedMessages)
    
     return {
         ...state,
