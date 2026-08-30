@@ -32,7 +32,7 @@ User Request: ${state.prompt}
       model: "black-forest-labs/FLUX.1-schnell",
       inputs: prompt,
     })
-
+    await deductCredits(state.userId,"vision")
     // 3. Convert Blob to Node.js Buffer
     const arrayBuffer = await imageBlob.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
