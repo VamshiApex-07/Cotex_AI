@@ -1,6 +1,7 @@
 import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages"
 import { getModel } from "../config/llmModels.js"
 import { getMemory } from "../config/memory.js"
+import { deductCredits } from "../utils/deductCredits.js"
 
 const MAX_INPUT_CHARS = 14000
 const MAX_MESSAGE_CHARS = 2500
@@ -94,7 +95,7 @@ Answer the user using only the above search results.
     const boundedMessages = fitWithinBudget(messages)
 
     const response = await llm.invoke(boundedMessages)
-   
+    await deductCredits(state.userId,"chat")
     return {
         ...state,
         aiResponse: response.content,
