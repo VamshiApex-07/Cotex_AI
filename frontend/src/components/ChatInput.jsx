@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import sendMessage from '../features/sendMessage'
 import { createConversation } from '../features/createConversation'
 import { updateConversation } from '../features/updateConversation'
-import { addMessage, setArtifacts, setIsLoading } from '../redux/messageSlice'
+import { addMessage, setArtifacts, setIsLoading, setActiveAgent } from '../redux/messageSlice'
 import { addConversation, setConvTitle, setSelectedConversation } from '../redux/conversationSlice'
 
 function ChatInput() {
@@ -80,6 +80,7 @@ function ChatInput() {
   const handleSendMessage = async () => {
     if ((!value.trim() && !selectedFile) || isLoading) return
 
+    dispatch(setActiveAgent(selectedAgent.toLowerCase()))
     dispatch(setIsLoading(true))
     let conversation = selectedConversation
 
@@ -112,6 +113,8 @@ function ChatInput() {
 
     const data = await sendMessage(formData)
     dispatch(setIsLoading(false))
+    // Update activeAgent with what the router actually picked (critical for auto mode)
+    if (data?.agent) dispatch(setActiveAgent(data.agent))
     dispatch(setArtifacts(data?.artifacts || []))
     dispatch(addMessage({ role: "assistant", content: data?.answer, images: data?.images }))
   }

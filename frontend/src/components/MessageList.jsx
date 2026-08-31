@@ -5,7 +5,7 @@ import LoadingAnimation from './LoadingAnimation'
 
 function MessageList() {
     const {selectedConversation}=useSelector(state=>state.conversation)
-    const {messages,isLoading}=useSelector(state=>state.message)
+    const {messages,isLoading,activeAgent}=useSelector(state=>state.message)
     const bottemRef=useRef(null)
    
    useEffect(()=>{
@@ -45,7 +45,7 @@ function MessageList() {
             </div>
         ))}
 
-        {isLoading && <LoadingAnimation/>}
+        {isLoading && <LoadingAnimation agent={activeAgent}/>}
 
         
       </div>

@@ -30,7 +30,8 @@ export const agent=async (req,res,next) => {
         return res.status(200).json({
             answer,
             images,
-            artifacts
+            artifacts,
+            agent: result?.agent || "chat"
         })
        
     } catch (error) {
