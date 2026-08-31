@@ -2,7 +2,7 @@ import { InferenceClient } from "@huggingface/inference"
 import { getModel } from "../config/llmModels.js"
 import { uploadToS3 } from "../utils/uploadToS3.js"
 import { getFromS3 } from "../utils/getFromS3.js"
-
+import { deductCredits } from "../utils/deductCredits.js"
 // Initialize HF Client using process.env.HF_TOKEN
 const hf = new InferenceClient(process.env.HF_TOKEN)
 
