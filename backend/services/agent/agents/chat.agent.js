@@ -2,7 +2,7 @@ import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages
 import { getModel } from "../config/llmModels.js"
 import { getMemory } from "../config/memory.js"
 import { deductCredits } from "../utils/deductCredits.js"
-
+import {checkAgentLimit} from "../config/agentLimit.js"
 const MAX_INPUT_CHARS = 14000
 const MAX_MESSAGE_CHARS = 2500
 
@@ -29,7 +29,7 @@ export const chatAgent = async (state) => {
    
 
     try {
-
+        await checkAgentLimit(state.userId,"chat")
          const llm = await getModel("chat")
 
     const history = await getMemory(state.conversationId)

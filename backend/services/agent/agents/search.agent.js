@@ -3,6 +3,7 @@ import { slimSearchResults } from "../utils/slimSearchResults.js"
 import { deductCredits } from "../utils/deductCredits.js"
 export const searchAgent = async (state) => {
     try {
+        await checkAgentLimit(state.userId,"search")
         const results = await searchTool.invoke({
             query: state.prompt
         })

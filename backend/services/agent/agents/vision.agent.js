@@ -3,11 +3,13 @@ import { getModel } from "../config/llmModels.js"
 import { uploadToS3 } from "../utils/uploadToS3.js"
 import { getFromS3 } from "../utils/getFromS3.js"
 import { deductCredits } from "../utils/deductCredits.js"
+import { checkAgentLimit } from "../config/agentLimit.js"
 // Initialize HF Client using process.env.HF_TOKEN
 const hf = new InferenceClient(process.env.HF_TOKEN)
 
 export const visionAgent = async (state) => {
   try {
+    await checkAgentLimit(state.userId,"image")
     const llm = await getModel("image")
 
     // 1. Refactored prompt engine: Action and main subject first

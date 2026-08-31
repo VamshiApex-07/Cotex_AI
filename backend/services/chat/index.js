@@ -2,9 +2,7 @@ import express from "express"
 import dotenv from "dotenv"
 import connectDb from "./config/db.js"
 dotenv.config()
-import dns from 'dns';
 import router from "./routes/chat.routes.js";
-dns.setServers(['8.8.8.8', '8.8.4.4']);
 const PORT = process.env.PORT
 
 const app=express()

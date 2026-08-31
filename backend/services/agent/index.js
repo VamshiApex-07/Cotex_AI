@@ -3,8 +3,6 @@ import dotenv from "dotenv"
 import connectDb from "./config/db.js"
 import router from "./routes/agent.route.js"
 dotenv.config()
-import dns from 'dns';
-dns.setServers(['8.8.8.8', '8.8.4.4']);
 const port =process.env.PORT
 
 const app=express()
