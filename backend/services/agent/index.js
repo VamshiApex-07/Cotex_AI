@@ -13,6 +13,10 @@ app.use(express.json())
 app.use("/",router)
 
 app.use((err,req,res,next)=>{
+  console.error("=== AGENT ERROR MIDDLEWARE ===")
+  console.error("Message:", err?.message)
+  console.error("Name:", err?.name)
+  console.error("Stack:", err?.stack)
   if(err.status){
     return res.status(err.status).json(err.data)
   }

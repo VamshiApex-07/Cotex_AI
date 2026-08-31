@@ -28,6 +28,10 @@ export const getModel=async (agent)=>{
            return gemini; 
         case "imageAnalyzer": 
            return gemini;   
+        case "vision-ocr":
+           return gemini;
+        case "pdf-rag":
+           return gemini;
     
         default:
             return groq;

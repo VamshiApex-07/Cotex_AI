@@ -34,6 +34,12 @@ export const agent=async (req,res,next) => {
         })
        
     } catch (error) {
+       console.error("=== AGENT CONTROLLER ERROR ===")
+       console.error("Message:", error?.message)
+       console.error("Name:", error?.name)
+       console.error("Status:", error?.status)
+       console.error("Data:", error?.data)
+       console.error("Stack:", error?.stack)
        next(error)
     }
 }
