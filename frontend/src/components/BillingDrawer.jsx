@@ -87,7 +87,7 @@ function BillingDrawer({ open, onClose }) {
                             <div className='mt-5'>
                                 <div className='flex justify-between text-xs text-slate-400 mb-2'>
                                     <span>Credits</span>
-                                    <span>{userData.credits || 0}/{userData.totalCredits || 100}</span>
+                                    <span>{userData?.credits || 0}/{userData?.totalCredits || 100}</span>
                                 </div>
 
                                 <div className='h-2 rounded-full bg-white/10 overflow-hidden'>
