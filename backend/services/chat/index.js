@@ -4,7 +4,8 @@ import connectDb from "./config/db.js"
 dotenv.config()
 import router from "./routes/chat.routes.js";
 const PORT = process.env.PORT
-
+import dns from "node:dns";
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 const app=express()
 app.use(express.json())
 app.use("/",router)

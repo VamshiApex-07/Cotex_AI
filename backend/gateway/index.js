@@ -7,7 +7,8 @@ import morgan from "morgan"
 import protect from "./middleware/auth.middleware.js"
 import { getCurrentUser } from "./controllers/user.controller.js"
 import { proxyWithHeader } from "./utils/proxyWithHeader.js"
-
+import dns from "node:dns"
+dns.setServers(["1.1.1.1", "8.8.8.8"])
 dotenv.config()
 
 const PORT = process.env.PORT

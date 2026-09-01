@@ -3,7 +3,8 @@ import dotenv from "dotenv"
 import connectDb from "./config/db.js"
 
 import router from "./routes/billing.route.js";
-
+import dns from "node:dns";
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 dotenv.config()
 
 const port =process.env.PORT
