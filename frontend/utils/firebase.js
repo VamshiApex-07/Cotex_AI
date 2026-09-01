@@ -20,3 +20,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth=getAuth(app)
 export const googleProvider=new GoogleAuthProvider()
+
+// Forces the account chooser on every sign-in. Without it, Google silently
+// reuses the last account, so "Use a different account" on the auth page would
+// clear the remembered profile and then log straight back into the same one.
+googleProvider.setCustomParameters({ prompt: "select_account" })

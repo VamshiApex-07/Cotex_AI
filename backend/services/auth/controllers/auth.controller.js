@@ -3,10 +3,48 @@ import { app } from "../config/firebase.js"
 import User from "../models/user.model.js"
 import redis from "../../../shared/redis/redis.js"
 
+// The one definition of what a session looks like. It is what gets cached in
+// Redis, what the gateway hands downstream as req.user, and what /api/me
+// returns — so login must return it too, or the client sees a different shape
+// after signing in than it does after a reload. It also keeps firebaseUid and
+// __v off the wire.
+const toSessionUser = (user) => ({
+    userId: user._id,
+    name: user.name,
+    email: user.email,
+    avatar: user.avatar,
+    plan: user.plan,
+    credits: user.credits,
+    totalCredits: user.totalCredits,
+    planExpiresAt: user.planExpiresAt
+})
+
 export const login = async (req, res) => {
+    const { token } = req.body
+
+    if (!token) {
+        return res.status(400).json({
+            code: "missing_token",
+            message: "Sign-in token missing. Please try again."
+        })
+    }
+
+    // Verification needs its own try/catch. A bad or expired token is a 401 the
+    // client recovers from by reopening the popup; everything below it is a 500
+    // it can only retry later. A single catch around both cannot tell them
+    // apart, so both used to come back as 500.
+    let decoded
     try {
-        const { token } = req.body
-        const decoded = await getAuth(app).verifyIdToken(token)
+        decoded = await getAuth(app).verifyIdToken(token)
+    } catch (error) {
+        console.error("[auth] verifyIdToken failed:", error?.code || error?.message)
+        return res.status(401).json({
+            code: "invalid_token",
+            message: "Your sign-in session expired. Please try again."
+        })
+    }
+
+    try {
         let user = await User.findOne({
             firebaseUid: decoded.uid
         })
@@ -24,16 +62,7 @@ export const login = async (req, res) => {
         await redis.set(`user-session-${user?._id}`,
             sessionId
             , "EX", 7 * 24 * 60 * 60)
-        await redis.set(`session-${sessionId}`, JSON.stringify({
-            userId: user._id,
-            name: user.name,
-            email: user.email,
-            avatar: user.avatar,
-            plan: user.plan,
-            credits: user.credits,
-            totalCredits: user.totalCredits,
-            planExpiresAt: user.planExpiresAt
-        }), "EX", 7 * 24 * 60 * 60)
+        await redis.set(`session-${sessionId}`, JSON.stringify(toSessionUser(user)), "EX", 7 * 24 * 60 * 60)
 
 
 
@@ -45,10 +74,16 @@ export const login = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000
         })
 
-        return res.status(200).json(user)
+        return res.status(200).json(toSessionUser(user))
 
     } catch (error) {
-        return res.status(500).json({ message: `login error ${error}` })
+        // Logged server-side, never echoed: the old response interpolated the
+        // raw error into the body and shipped internal text to the browser.
+        console.error("[auth] login failed:", error)
+        return res.status(500).json({
+            code: "login_failed",
+            message: "We couldn't complete sign-in. Please try again."
+        })
     }
 }
 
@@ -83,16 +118,7 @@ export const updateUserPayment = async (req, res) => {
 
         const sessionId = await redis.get(`user-session-${updatedUser?._id}`)
         console.log("sessionId", sessionId)
-        await redis.set(`session-${sessionId}`, JSON.stringify({
-            userId: updatedUser._id,
-            name: updatedUser.name,
-            email: updatedUser.email,
-            avatar: updatedUser.avatar,
-            plan: updatedUser.plan,
-            credits: updatedUser.credits,
-            totalCredits: updatedUser.totalCredits,
-            planExpiresAt: updatedUser.planExpiresAt
-        }), "EX", 7 * 24 * 60 * 60)
+        await redis.set(`session-${sessionId}`, JSON.stringify(toSessionUser(updatedUser)), "EX", 7 * 24 * 60 * 60)
 
         return res.status(200).json({ success: true })
 
@@ -136,16 +162,7 @@ export const deductCredits = async (req, res) => {
 
         const sessionId = await redis.get(`user-session-${updatedUser?._id}`)
         console.log("sessionId", sessionId)
-        await redis.set(`session-${sessionId}`, JSON.stringify({
-            userId: updatedUser._id,
-            name: updatedUser.name,
-            email: updatedUser.email,
-            avatar: updatedUser.avatar,
-            plan: updatedUser.plan,
-            credits: updatedUser.credits,
-            totalCredits: updatedUser.totalCredits,
-            planExpiresAt: updatedUser.planExpiresAt
-        }), "EX", 7 * 24 * 60 * 60)
+        await redis.set(`session-${sessionId}`, JSON.stringify(toSessionUser(updatedUser)), "EX", 7 * 24 * 60 * 60)
 
         return res.status(200).json({ success: true ,credits:updatedUser.credits})
     } catch (error) {

@@ -9,7 +9,8 @@ const app=express()
 
 app.use(express.json())
 app.use("/",router)
-
+import dns from "node:dns";
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 app.use((err,req,res,next)=>{
   console.error("=== AGENT ERROR MIDDLEWARE ===")
   console.error("Message:", err?.message)

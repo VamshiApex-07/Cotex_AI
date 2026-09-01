@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Coins, LogOut, Menu, MessageSquare, PanelLeftIcon, PanelRight, PenSquare, Plus, User, X } from "lucide-react"
+import { Coins, Loader2, LogOut, Menu, MessageSquare, PanelLeftIcon, PanelRight, PenSquare, Plus, User, X } from "lucide-react"
 import { useDispatch, useSelector } from 'react-redux'
 import { getConversations } from '../features/getConversations'
 import { createConversation } from '../features/createConversation'
 import logOut from '../features/logOut'
 import { addConversation, setConversations, setSelectedConversation } from '../redux/conversationSlice'
-import { setUserdata } from '../redux/userSlice'
+import { clearUser } from '../redux/userSlice'
 import BillingDrawer from './BillingDrawer.jsx'
 
 function SideBar() {
@@ -13,18 +13,21 @@ function SideBar() {
     const [imageError, setImageError] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
     const [showBilling, setShowBilling] = useState(false)
-    
+    const [loggingOut, setLoggingOut] = useState(false)
+
     const dispatch = useDispatch()
     const { conversations, selectedConversation } = useSelector(state => state.conversation)
     const { userData } = useSelector(state => state.user)
 
+    // userId, not _id — that is the key /api/me returns, and login now returns
+    // the same shape so this refires on a genuine account switch.
     useEffect(() => {
         const getConv = async () => {
             const data = await getConversations()
             dispatch(setConversations(data))
         }
         getConv()
-    }, [userData?._id, dispatch])
+    }, [userData?.userId, dispatch])
 
     const handleCreateConversation = async () => {
         const data = await createConversation()
@@ -42,9 +45,16 @@ function SideBar() {
         setMobileOpen(false)
     }
 
-    const handleLogout = () => {
-        logOut()
-        dispatch(setUserdata(null))
+    // Awaited, and clearUser rather than setUserdata(null): the dispatch used
+    // to race the un-awaited request, and nulling userData alone would leave
+    // authStatus at "authenticated" — stranding the user on an empty shell
+    // instead of returning them to the auth page. clearUser also resets the
+    // conversation and message slices so nothing of this session survives.
+    const handleLogout = async () => {
+        if (loggingOut) return
+        setLoggingOut(true)
+        await logOut()
+        dispatch(clearUser())
     }
 
     return (
@@ -206,9 +216,11 @@ function SideBar() {
 
                         <div className='mx-2.5 h-px bg-white/[0.06]' />
 
-                        {/* User Profile Footer */}
+                        {/* User Profile Footer. No signed-out branch: App only
+                            mounts Home once authenticated, so the old Login
+                            button here was unreachable and did nothing. */}
                         <div className='px-3.5 py-3.5'>
-                            {userData ? (
+                            {userData && (
                                 <div className='flex items-center gap-2.5 rounded-xl px-3 py-2.5 hover:bg-white/[0.05] transition-colors duration-150'>
                                     <div className='relative shrink-0'>
                                         {userData?.avatar && !imageError ? (
@@ -236,19 +248,17 @@ function SideBar() {
                                         >
                                             <Coins size={16} />
                                         </button>
-                                        <button 
-                                            className='flex items-center justify-center w-7 h-7 rounded-[7px] border-none bg-transparent text-slate-600 cursor-pointer hover:bg-white/[0.08] hover:text-slate-400 transition-all duration-150'
+                                        <button
+                                            className='flex items-center justify-center w-7 h-7 rounded-[7px] border-none bg-transparent text-slate-600 cursor-pointer hover:bg-white/[0.08] hover:text-slate-400 transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60'
                                             onClick={handleLogout}
+                                            disabled={loggingOut}
+                                            aria-busy={loggingOut}
                                             title="Log Out"
                                         >
-                                            <LogOut size={16} />
+                                            {loggingOut ? <Loader2 size={16} className='animate-spin' /> : <LogOut size={16} />}
                                         </button>
                                     </div>
                                 </div>
-                            ) : (
-                                <button className='w-full flex items-center justify-center gap-2 text-sm font-medium text-slate-200 bg-white/[0.05] border border-white/[0.08] rounded-xl py-[11px] cursor-pointer hover:bg-white/[0.08] transition-colors duration-150'>
-                                    Login
-                                </button>
                             )}
                         </div>
                     </div>

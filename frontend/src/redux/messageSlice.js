@@ -1,13 +1,16 @@
 import { createSlice } from "@reduxjs/toolkit";
+import { clearUser } from "./userSlice.js";
+
+const initialState={
+  messages:[],
+  artifacts:[],
+  isLoading:false,
+  activeAgent:"auto"
+}
 
 const messageSlice=createSlice({
     name:"message",
-    initialState:{
-      messages:[],
-      artifacts:[],
-      isLoading:false,
-      activeAgent:"auto"
-    },
+    initialState,
     reducers:{
        setMessages:(state,action)=>{
         state.messages=action.payload
@@ -24,8 +27,13 @@ const messageSlice=createSlice({
        setActiveAgent:(state,action)=>{
         state.activeAgent=action.payload
        }
+    },
+    // Same reason as conversationSlice: a stale transcript must not survive
+    // into the next session on this tab.
+    extraReducers:(builder)=>{
+      builder.addCase(clearUser,()=>initialState)
     }
-   
+
 })
 
 export const {setMessages,addMessage,setArtifacts,setIsLoading,setActiveAgent}=messageSlice.actions 
