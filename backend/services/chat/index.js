@@ -3,13 +3,11 @@
 // ran too late to guarantee.
 import "dotenv/config"
 import express from "express"
-import dns from "node:dns"
 import connectDb from "./config/db.js"
 import router from "./routes/chat.routes.js"
 import { assertInternalSecret, requireInternal } from "../../shared/auth/internalAuth.js"
 
 const PORT = process.env.PORT
-dns.setServers(["1.1.1.1", "8.8.8.8"]);
 const app=express()
 // The gateway proxies with a 50mb ceiling; the express default of 100kb rejected
 // artifact-sized payloads with an opaque error long before reaching a handler.

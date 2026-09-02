@@ -1,6 +1,5 @@
 import "dotenv/config"
 
-import dns from "node:dns"
 import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
@@ -9,8 +8,6 @@ import protect from "./middleware/auth.middleware.js"
 import { getCurrentUser } from "./controllers/user.controller.js"
 import { proxyWithHeader } from "./utils/proxyWithHeader.js"
 import { assertInternalSecret } from "../shared/auth/internalAuth.js"
-
-dns.setServers(["1.1.1.1", "8.8.8.8"])
 
 const REQUIRED_ENV = [
     "PORT",

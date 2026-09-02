@@ -1,12 +1,9 @@
 import "dotenv/config"
 
-import dns from "node:dns"
 import express from "express"
 import connectDb from "./config/db.js"
 import router from "./routes/billing.route.js"
 import { assertInternalSecret, requireInternal } from "../../shared/auth/internalAuth.js"
-
-dns.setServers(["1.1.1.1", "8.8.8.8"])
 
 const REQUIRED_ENV = ["PORT", "MONGODB_URI", "AUTH_SERVICE", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"]
 const missing = REQUIRED_ENV.filter((key) => !process.env[key])

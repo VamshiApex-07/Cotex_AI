@@ -1,13 +1,10 @@
 import "dotenv/config"
 
-import dns from "node:dns"
 import express from "express"
 import connectDb from "./config/db.js"
 import authRouter from "./routes/auth.route.js"
 import internalRouter from "./routes/internal.route.js"
 import { assertInternalSecret, requireInternal } from "../../shared/auth/internalAuth.js"
-
-dns.setServers(["8.8.8.8", "8.8.4.4"])
 
 const REQUIRED_ENV = ["PORT", "MONGODB_URI", "REDIS_URL"]
 const missing = REQUIRED_ENV.filter((key) => !process.env[key])
