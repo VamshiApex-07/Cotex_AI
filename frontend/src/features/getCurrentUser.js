@@ -11,8 +11,9 @@ const getCurrentUser=async () => {
         const {data}=await api.get("/api/me")
         return data
     } catch (error) {
-        // The gateway answers 400 for a missing or expired session today, 401
-        // once that's corrected. Both mean the same thing here.
+        // The gateway answers 401 for a missing, malformed or expired session.
+        // 400 is still accepted because a client running against an older
+        // gateway build would see it, and both mean the same thing here.
         const status=error?.response?.status
         if(status===400 || status===401) return null
         throw error

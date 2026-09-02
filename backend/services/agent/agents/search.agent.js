@@ -1,20 +1,25 @@
 import { searchTool } from "../config/tavily.js"
 import { slimSearchResults } from "../utils/slimSearchResults.js"
-import { deductCredits } from "../utils/deductCredits.js"
+import { refundCredits, reserveCredits } from "../utils/deductCredits.js"
 import { checkAgentLimit } from "../config/agentLimit.js"
 export const searchAgent = async (state) => {
+    let reserved = false
+    let reservation = null
     try {
         await checkAgentLimit(state.userId,"search")
+        reservation = await reserveCredits(state.userId,"search")
+        reserved = true
         const results = await searchTool.invoke({
             query: state.prompt
         })
-        await deductCredits(state.userId,"search")
         return {
             ...state,
             searchResults: slimSearchResults(results),
             images: results?.images || []
         }
     } catch (error) {
+        // A swallowed search failure is still a failure the user must not pay for.
+        if (reserved) await refundCredits(state.userId,"search",reservation?.reservationId)
         console.log(error)
         return {
             ...state,

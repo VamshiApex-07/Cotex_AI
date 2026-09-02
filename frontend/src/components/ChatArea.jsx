@@ -9,26 +9,37 @@ import MessageList from './MessageList'
 function ChatArea() {
   const {selectedConversation}=useSelector(state=>state.conversation)
   const dispatch=useDispatch()
+  const conversationId = selectedConversation?._id
+  const conversationTitle = selectedConversation?.title
+
   useEffect(()=>{
-  const getMesg=async () => {
-    
-    if(selectedConversation){
-      if(selectedConversation.title=="New Chat"){
+    const abortController=new AbortController()
+    const getMesg=async () => {
+
+    if(conversationId){
+      if(conversationTitle==="New Chat"){
         dispatch(setMessages([]))
         dispatch(setArtifacts([]))
         return;
       }
-const data=await getMessages(selectedConversation?._id)
-console.log(data)
-      dispatch(setMessages(data))
-      const latestArtifactMessage=[...data].reverse().find(msg=>msg.artifacts && msg.artifacts.length>0)
-      dispatch(setArtifacts(latestArtifactMessage?.artifacts || []))
+      const data=await getMessages(conversationId, abortController.signal)
+      if(!abortController.signal.aborted){
+        console.log(data)
+        dispatch(setMessages(data))
+        const allArtifacts = data
+            .filter(msg => msg.artifacts?.length > 0)
+            .flatMap(msg => msg.artifacts)
+        dispatch(setArtifacts(allArtifacts))
+      }
     }
-    
-  }
 
-  getMesg()
-  },[selectedConversation?._id])
+    }
+
+    getMesg()
+    return ()=>{
+      abortController.abort()
+    }
+  },[conversationId, conversationTitle, dispatch])
   return (
     <div className='flex-1 flex flex-col min-w-0'>
       <Nav/>

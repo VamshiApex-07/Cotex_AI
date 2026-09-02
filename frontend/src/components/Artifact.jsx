@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { AnimatePresence, easeInOut, motion } from "motion/react"
 import Editor from '@monaco-editor/react';
+import DOMPurify from 'dompurify';
 
 const detectLanguage = (fileName = "") => {
     const name = fileName.toLowerCase()
@@ -59,6 +60,10 @@ const PanelContent = ({ artifacts, collapsed, onClose, onCollapse, onExpand }) =
 
     const canPreview = Boolean(htmlFile)
 
+    const sanitizedCss = DOMPurify.sanitize(cssFile?.content || "", { USE_PROFILES: { css: true } })
+    const sanitizedHtml = DOMPurify.sanitize(htmlFile?.content || "", { USE_PROFILES: { html: true }, ALLOWED_TAGS: ['body', 'head'] })
+    const sanitizedJs = DOMPurify.sanitize(jsFile?.content || "", { USE_PROFILES: { javascript: true } })
+
     const previewDoc = `
   <!DOCTYPE html>
 <html lang="en">
@@ -66,14 +71,14 @@ const PanelContent = ({ artifacts, collapsed, onClose, onCollapse, onExpand }) =
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-     ${cssFile?.content || ""}
+     ${sanitizedCss}
     </style>
 </head>
 <body>
- ${htmlFile?.content || ""} 
+ ${sanitizedHtml}
 <script>
-    ${jsFile?.content || ""}
-</script>    
+    ${sanitizedJs}
+</script>
 </body>
 </html>`
 

@@ -1,13 +1,17 @@
 import { checkAgentLimit } from "../config/agentLimit.js"
 import { getModel } from "../config/llmModels.js"
-import { deductCredits } from "../utils/deductCredits.js"
+import { refundCredits, reserveCredits } from "../utils/deductCredits.js"
 import { generatePpt } from "../utils/generatePpt.js"
 import { getFromS3 } from "../utils/getFromS3.js"
 import { uploadToS3 } from "../utils/uploadToS3.js"
 
 export const pptAgent = async (state) => {
+  let reserved = false
+  let reservation = null
   try {
     await checkAgentLimit(state.userId,"ppt")
+    reservation = await reserveCredits(state.userId,"ppt")
+    reserved = true
     const llm = await getModel("ppt")
     const prompt = `You are a professional presentation designer and visual content curator.
 
@@ -48,7 +52,6 @@ Topic: ${state.prompt}`
     }
 
     const data = JSON.parse(cleanJson)
-    await deductCredits(state.userId,"ppt")
     const ppt = await generatePpt(data)
     
     const buffer = await ppt.write({
@@ -73,6 +76,8 @@ _Link expires in 10 minutes._`
     }
 
   } catch (error) {
+    // A swallowed failure is still a failure the user must not pay for.
+    if (reserved) await refundCredits(state.userId,"ppt",reservation?.reservationId)
     console.error("PPT Agent Error:", error)
     return {
       ...state,

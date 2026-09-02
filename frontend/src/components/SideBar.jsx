@@ -7,6 +7,8 @@ import logOut from '../features/logOut'
 import { addConversation, setConversations, setSelectedConversation } from '../redux/conversationSlice'
 import { clearUser } from '../redux/userSlice'
 import BillingDrawer from './BillingDrawer.jsx'
+import BrandMark from './BrandMark.jsx'
+import { useToast } from '../hooks/useToast'
 
 function SideBar() {
     const [collapsed, setCollapsed] = useState(false)
@@ -14,19 +16,24 @@ function SideBar() {
     const [mobileOpen, setMobileOpen] = useState(false)
     const [showBilling, setShowBilling] = useState(false)
     const [loggingOut, setLoggingOut] = useState(false)
+    const toast = useToast()
 
     const dispatch = useDispatch()
     const { conversations, selectedConversation } = useSelector(state => state.conversation)
     const { userData } = useSelector(state => state.user)
 
-    // userId, not _id — that is the key /api/me returns, and login now returns
-    // the same shape so this refires on a genuine account switch.
     useEffect(() => {
+        const abortController=new AbortController()
         const getConv = async () => {
-            const data = await getConversations()
-            dispatch(setConversations(data))
+            const data = await getConversations(abortController.signal)
+            if(!abortController.signal.aborted){
+                dispatch(setConversations(data))
+            }
         }
         getConv()
+        return ()=>{
+            abortController.abort()
+        }
     }, [userData?.userId, dispatch])
 
     const handleCreateConversation = async () => {
@@ -34,8 +41,10 @@ function SideBar() {
         if (data) {
             dispatch(addConversation(data))
             dispatch(setSelectedConversation(data))
+            toast.success("New conversation created")
         } else {
             dispatch(setSelectedConversation(null))
+            toast.error("Failed to create conversation")
         }
         setMobileOpen(false)
     }
@@ -45,40 +54,34 @@ function SideBar() {
         setMobileOpen(false)
     }
 
-    // Awaited, and clearUser rather than setUserdata(null): the dispatch used
-    // to race the un-awaited request, and nulling userData alone would leave
-    // authStatus at "authenticated" — stranding the user on an empty shell
-    // instead of returning them to the auth page. clearUser also resets the
-    // conversation and message slices so nothing of this session survives.
     const handleLogout = async () => {
         if (loggingOut) return
         setLoggingOut(true)
         await logOut()
         dispatch(clearUser())
+        toast.success("Logged out successfully")
     }
 
     return (
         <>
-            {/* Mobile Toggle & Backdrop */}
-            <button 
-                className='lg:hidden fixed top-3.5 left-4 z-50 flex items-center justify-center w-8 h-8 rounded-lg bg-[#0d0f14] border border-white/[0.06] text-slate-400 hover:text-slate-200 transition-colors duration-150 cursor-pointer' 
+            <button
+                className='lg:hidden fixed top-3.5 left-4 z-50 flex items-center justify-center w-9 h-9 rounded-xl bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-violet-500/30 transition-all cursor-pointer'
                 onClick={() => setMobileOpen(true)}
             >
-                <Menu size={14} />
+                <Menu size={16} />
             </button>
 
             {mobileOpen && (
-                <div 
-                    onClick={() => setMobileOpen(false)} 
-                    className='lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm'
+                <div
+                    onClick={() => setMobileOpen(false)}
+                    className='lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm'
                 />
             )}
 
-            {/* Collapsed Sidebar (Desktop Only) */}
             {collapsed ? (
-                <aside className='hidden lg:flex flex-col items-center w-[56px] h-screen bg-[#0d0f14] border-r border-white/[0.06] py-4 gap-1 shrink-0'>
-                    <button 
-                        className='flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-white/[0.05] transition-colors duration-150 bg-transparent border-none cursor-pointer mb-1'
+                <aside className='hidden lg:flex flex-col items-center w-[64px] h-screen shrink-0 bg-[#08090d] border-r border-slate-800/50 py-4 gap-3'>
+                    <button
+                        className='flex items-center justify-center w-10 h-10 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-slate-800/50 transition-all cursor-pointer'
                         onClick={() => setCollapsed(false)}
                         title="Expand Sidebar"
                     >
@@ -86,186 +89,189 @@ function SideBar() {
                     </button>
 
                     <button
-                        className='flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-white/[0.05] transition-colors duration-150 bg-transparent border-none cursor-pointer'
+                        className='flex items-center justify-center w-10 h-10 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-slate-800/50 transition-all cursor-pointer'
                         onClick={handleCreateConversation}
                         title="New Chat"
                     >
-                        <Plus size={17} />
+                        <Plus size={18} />
                     </button>
 
-                    <div className='flex-1 overflow-y-auto px-2.5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pt-5 w-full'>
-                        {conversations?.map((conv, i) => {
+                    <div className='flex-1 overflow-y-auto px-2 py-2 space-y-1 w-full'>
+                        {conversations?.slice(0, 8).map((conv, i) => {
                             const isActive = selectedConversation?._id === conv?._id
                             return (
-                                <div
+                                <button
                                     key={conv?._id || i}
                                     onClick={() => handleSelectConversation(conv)}
-                                    className={`flex items-center justify-center cursor-pointer mb-1 p-2 rounded-[10px] border transition-colors duration-150 ${
-                                        isActive ? "bg-indigo-500/10 border-indigo-500/[0.18]" : "bg-transparent border-transparent hover:bg-white/[0.04]"
-                                    }`}
+                                    className={`w-full flex items-center justify-center p-2.5 rounded-xl transition-all cursor-pointer
+                                        ${isActive
+                                            ? 'bg-gradient-to-br from-violet-600/20 to-indigo-600/20 text-violet-400 border border-violet-500/30'
+                                            : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/50'
+                                        }`}
+                                    title={conv?.title || "New Chat"}
                                 >
-                                    <div className={`flex items-center justify-center shrink-0 w-[24px] h-[24px] rounded-lg transition-colors duration-150 ${
-                                        isActive ? "bg-indigo-500/15 text-indigo-400" : "bg-white/[0.05] text-slate-500"
-                                    }`}>
-                                        <MessageSquare size={13} />
-                                    </div>
-                                </div>
+                                    <MessageSquare size={16} />
+                                </button>
                             )
                         })}
                     </div>
 
-                    <div 
-                        className='relative shrink-0 mt-auto cursor-pointer'
-                        onClick={() => setShowBilling(true)}
-                        title="Billing & Account"
-                    >
+                    <div className='mt-auto space-y-2'>
+                        <button
+                            onClick={() => setShowBilling(true)}
+                            className='flex items-center justify-center w-10 h-10 rounded-xl text-amber-500 hover:bg-amber-500/10 transition-all cursor-pointer'
+                            title="Billing & Account"
+                        >
+                            <Coins size={18} />
+                        </button>
                         {userData?.avatar && !imageError ? (
                             <img
-                                className='w-9 h-9 rounded-[10px] object-cover border-2 border-indigo-500/25 hover:border-indigo-400 transition-colors'
+                                className='w-10 h-10 rounded-xl object-cover border-2 border-slate-700 hover:border-violet-500/50 transition-all cursor-pointer'
                                 src={userData?.avatar}
                                 alt="User avatar"
                                 onError={() => setImageError(true)}
                             />
                         ) : (
-                            <div className='w-9 h-9 rounded-[10px] bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1] transition-colors'>
-                                <User size={15} className="text-slate-400" />
+                            <div className='w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center'>
+                                <User size={16} className="text-slate-500" />
                             </div>
                         )}
                     </div>
                 </aside>
             ) : (
-                /* Expanded Sidebar */
-                <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-[270px] h-screen shrink-0 bg-[#0d0f14] border-r border-white/[0.06] transition-transform duration-250 ${
+                <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-[280px] h-screen shrink-0 bg-[#08090d] border-r border-slate-800/50 transition-transform duration-300 ${
                     mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
                 }`}>
                     <div className='flex flex-col h-full'>
-                        {/* Header */}
-                        <div className='flex items-center gap-2.5 px-4 py-4 border-b border-white/[0.06]'>
-                            <button 
-                                className='hidden lg:flex items-center justify-center w-7 h-7 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/[0.05] transition-colors duration-150 bg-transparent border-none cursor-pointer'
+                        <div className='flex items-center gap-3 px-4 py-4 border-b border-slate-800/50'>
+                            <button
+                                className='hidden lg:flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800/50 transition-all cursor-pointer'
                                 onClick={() => setCollapsed(true)}
                                 title="Collapse Sidebar"
                             >
                                 <PanelLeftIcon size={16} />
                             </button>
 
-                            <button 
+                            <button
                                 onClick={() => setMobileOpen(false)}
-                                className="lg:hidden flex items-center justify-center w-7 h-7 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/[0.05] transition-colors duration-150 bg-transparent border-none cursor-pointer"
+                                className="lg:hidden flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800/50 transition-all cursor-pointer"
                             >
                                 <X size={16}/>
                             </button>
 
-                            <span className='text-[16px] font-semibold text-slate-100 tracking-tight flex-1'>
-                                CortexAI
-                            </span>
+                            <div className="flex items-center gap-2 flex-1">
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+                                    <BrandMark size={18} />
+                                </div>
+                                <span className='text-[15px] font-semibold tracking-tight'>
+                                    CortexAI
+                                </span>
+                            </div>
 
-                            <span className='text-[10px] font-medium text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full tracking-wide'>
+                            <span className='badge-premium text-[10px] font-medium px-2 py-0.5 rounded-full'>
                                 {userData?.plan || "free"}
                             </span>
 
-                            <button 
-                                className='flex items-center justify-center w-7 h-7 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/[0.05] transition-colors duration-150 bg-transparent border-none cursor-pointer'
+                            <button
+                                className='flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800/50 transition-all cursor-pointer'
                                 onClick={handleCreateConversation}
                                 title="New Chat"
                             >
-                                <PenSquare size={14} />
+                                <PenSquare size={15} />
                             </button>
                         </div>
 
-                        {/* Action CTA */}
-                        <div className='px-4 pt-4 pb-1'>
-                            <button 
-                                className='w-full flex items-center justify-center gap-2 text-sm font-medium text-white bg-linear-to-br from-indigo-500 to-violet-700 rounded-xl py-[10px] border-none cursor-pointer hover:opacity-90 transition-opacity duration-150'
+                        <div className='px-4 pt-4 pb-2'>
+                            <button
+                                className='w-full btn-premium flex items-center justify-center gap-2 text-sm font-medium text-white rounded-xl py-2.5 shadow-lg shadow-violet-500/20'
                                 onClick={handleCreateConversation}
                             >
-                                <Plus size={15} />
+                                <Plus size={16} />
                                 New Chat
                             </button>
                         </div>
 
-                        {/* Section Label */}
-                        <div className='px-5 pt-4 pb-1.5 text-[10.5px] font-semibold uppercase tracking-widest text-slate-600'>
-                            {conversations?.length === 0 ? "No Recent Conversations" : "Recents"}
+                        <div className='px-4 py-2'>
+                            <span className='text-[10px] font-semibold uppercase tracking-widest text-slate-600'>
+                                {conversations?.length === 0 ? "No conversations" : "Recent"}
+                            </span>
                         </div>
 
-                        {/* Recent Items */}
-                        <div className='flex-1 overflow-y-auto px-2.5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'>
+                        <div className='flex-1 overflow-y-auto px-3 pb-3 space-y-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'>
                             {conversations?.map((conv, i) => {
                                 const isActive = selectedConversation?._id === conv?._id
                                 return (
-                                    <div
+                                    <button
                                         key={conv?._id || i}
                                         onClick={() => handleSelectConversation(conv)}
-                                        className={`flex items-center gap-2.5 cursor-pointer mb-0.5 px-3 py-2.5 rounded-[10px] border transition-colors duration-150 ${
-                                            isActive ? "bg-indigo-500/10 border-indigo-500/[0.18]" : "bg-transparent border-transparent hover:bg-white/[0.04]"
-                                        }`}
+                                        className={`w-full flex items-center gap-3 cursor-pointer rounded-xl px-3 py-2.5 transition-all text-left
+                                            ${isActive
+                                                ? 'bg-gradient-to-r from-violet-600/15 to-indigo-600/15 border border-violet-500/30'
+                                                : 'hover:bg-slate-800/50 border border-transparent'
+                                            }`}
                                     >
-                                        <div className={`flex items-center justify-center shrink-0 w-[28px] h-[28px] rounded-lg transition-colors duration-150 ${
-                                            isActive ? "bg-indigo-500/15 text-indigo-400" : "bg-white/[0.05] text-slate-500"
-                                        }`}>
-                                            <MessageSquare size={13} />
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors
+                                            ${isActive
+                                                ? 'bg-violet-600/30 text-violet-400'
+                                                : 'bg-slate-800/80 text-slate-500'
+                                            }`}>
+                                            <MessageSquare size={14} />
                                         </div>
-                                        <span className={`text-[13px] font-medium truncate ${isActive ? "text-slate-100" : "text-slate-300"}`}>
+                                        <span className={`text-[13px] truncate transition-colors
+                                            ${isActive ? 'text-white font-medium' : 'text-slate-400'}`}>
                                             {conv?.title || "New Chat"}
                                         </span>
-                                    </div>
+                                    </button>
                                 )
                             })}
                         </div>
 
-                        <div className='mx-2.5 h-px bg-white/[0.06]' />
+                        <div className='mx-3 h-px bg-slate-800/50' />
 
-                        {/* User Profile Footer. No signed-out branch: App only
-                            mounts Home once authenticated, so the old Login
-                            button here was unreachable and did nothing. */}
-                        <div className='px-3.5 py-3.5'>
-                            {userData && (
-                                <div className='flex items-center gap-2.5 rounded-xl px-3 py-2.5 hover:bg-white/[0.05] transition-colors duration-150'>
-                                    <div className='relative shrink-0'>
-                                        {userData?.avatar && !imageError ? (
-                                            <img
-                                                className='w-9 h-9 rounded-[10px] object-cover border-2 border-indigo-500/25'
-                                                src={userData?.avatar}
-                                                alt="User avatar"
-                                                onError={() => setImageError(true)}
-                                            />
-                                        ) : (
-                                            <div className='w-9 h-9 rounded-[10px] bg-white/[0.06] flex items-center justify-center'>
-                                                <User size={15} className="text-slate-400" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className='flex-1 min-w-0'>
-                                        <p className='text-[13.5px] font-semibold text-slate-100 truncate'>{userData?.name || "User"}</p>
-                                        <p className='text-[11px] text-slate-600 mt-px'>{userData?.plan || "free plan"}</p>
-                                    </div>
-                                    <div className='flex gap-1'>
-                                        <button 
-                                            className='flex items-center justify-center w-7 h-7 rounded-[7px] border-none bg-transparent text-amber-500 cursor-pointer hover:bg-white/[0.08] hover:text-amber-400 transition-all duration-150'
-                                            onClick={() => setShowBilling(true)}
-                                            title="Billing"
-                                        >
-                                            <Coins size={16} />
-                                        </button>
-                                        <button
-                                            className='flex items-center justify-center w-7 h-7 rounded-[7px] border-none bg-transparent text-slate-600 cursor-pointer hover:bg-white/[0.08] hover:text-slate-400 transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60'
-                                            onClick={handleLogout}
-                                            disabled={loggingOut}
-                                            aria-busy={loggingOut}
-                                            title="Log Out"
-                                        >
-                                            {loggingOut ? <Loader2 size={16} className='animate-spin' /> : <LogOut size={16} />}
-                                        </button>
-                                    </div>
+                        <div className='px-3 py-3'>
+                            <div className='flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-800/50 transition-colors'>
+                                <div className='relative shrink-0'>
+                                    {userData?.avatar && !imageError ? (
+                                        <img
+                                            className='w-9 h-9 rounded-xl object-cover ring-2 ring-slate-700'
+                                            src={userData?.avatar}
+                                            alt="User avatar"
+                                            onError={() => setImageError(true)}
+                                        />
+                                    ) : (
+                                        <div className='w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center'>
+                                            <User size={15} className="text-white" />
+                                        </div>
+                                    )}
+                                    <div className='absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#08090d]' />
                                 </div>
-                            )}
+                                <div className='flex-1 min-w-0'>
+                                    <p className='text-[13px] font-medium text-slate-200 truncate'>{userData?.name || "User"}</p>
+                                    <p className='text-[11px] text-slate-500'>{(userData?.credits || 0)} credits</p>
+                                </div>
+                                <div className='flex gap-1.5'>
+                                    <button
+                                        onClick={() => setShowBilling(true)}
+                                        className='flex items-center justify-center w-8 h-8 rounded-lg text-amber-500 hover:bg-amber-500/10 transition-all cursor-pointer'
+                                        title="Billing"
+                                    >
+                                        <Coins size={16} />
+                                    </button>
+                                    <button
+                                        onClick={handleLogout}
+                                        disabled={loggingOut}
+                                        className='flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
+                                        title="Log Out"
+                                    >
+                                        {loggingOut ? <Loader2 size={16} className='animate-spin' /> : <LogOut size={16} />}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </aside>
             )}
 
-            {/* Global Billing Modal Layer */}
             <BillingDrawer
                 open={showBilling}
                 onClose={() => setShowBilling(false)}

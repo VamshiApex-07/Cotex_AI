@@ -2,14 +2,18 @@ import { InferenceClient } from "@huggingface/inference"
 import { getModel } from "../config/llmModels.js"
 import { uploadToS3 } from "../utils/uploadToS3.js"
 import { getFromS3 } from "../utils/getFromS3.js"
-import { deductCredits } from "../utils/deductCredits.js"
+import { refundCredits, reserveCredits } from "../utils/deductCredits.js"
 import { checkAgentLimit } from "../config/agentLimit.js"
 // Initialize HF Client using process.env.HF_TOKEN
 const hf = new InferenceClient(process.env.HF_TOKEN)
 
 export const visionAgent = async (state) => {
+  let reserved = false
+  let reservation = null
   try {
     await checkAgentLimit(state.userId,"image")
+    reservation = await reserveCredits(state.userId,"vision")
+    reserved = true
     const llm = await getModel("image")
 
     // 1. Refactored prompt engine: Action and main subject first
@@ -34,7 +38,6 @@ User Request: ${state.prompt}
       model: "black-forest-labs/FLUX.1-schnell",
       inputs: prompt,
     })
-    await deductCredits(state.userId,"vision")
     // 3. Convert Blob to Node.js Buffer
     const arrayBuffer = await imageBlob.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
@@ -56,6 +59,8 @@ User Request: ${state.prompt}
 ⏳ Link expires in 10 minutes.`
     }
   } catch (error) {
+    // A swallowed failure is still a failure the user must not pay for.
+    if (reserved) await refundCredits(state.userId,"vision",reservation?.reservationId)
     console.error("HF Vision Agent Error:", error)
     return {
       ...state,

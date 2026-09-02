@@ -1,7 +1,7 @@
 import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages"
 import { getModel } from "../config/llmModels.js"
 import { getMemory } from "../config/memory.js"
-import { deductCredits } from "../utils/deductCredits.js"
+import { refundCredits, reserveCredits } from "../utils/deductCredits.js"
 import {checkAgentLimit} from "../config/agentLimit.js"
 const MAX_INPUT_CHARS = 14000
 const MAX_MESSAGE_CHARS = 2500
@@ -27,12 +27,16 @@ const fitWithinBudget = (messages) => {
 export const chatAgent = async (state) => {
 
    
+    let reserved = false
+    let reservation = null
 
     try {
         await checkAgentLimit(state.userId,"chat")
+        reservation = await reserveCredits(state.userId,"chat")
+        reserved = true
          const llm = await getModel("chat")
 
-    const history = await getMemory(state.conversationId)
+    const history = await getMemory(state.conversationId, state.userId)
     const recentHistory = (history || []).slice(-8)
 
    const searchContext=state.searchResults?`
@@ -95,13 +99,15 @@ Answer the user using only the above search results.
     const boundedMessages = fitWithinBudget(messages)
 
     const response = await llm.invoke(boundedMessages)
-    await deductCredits(state.userId,"chat")
     return {
         ...state,
         aiResponse: response.content,
         
     }
     } catch (error) {
+        // Swallowing the error and returning a message is still a failure the
+        // user must not pay for, so the refund belongs on this path too.
+        if (reserved) await refundCredits(state.userId,"chat",reservation?.reservationId)
         console.log(error)
          return {
             ...state,

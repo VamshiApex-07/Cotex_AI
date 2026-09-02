@@ -2,11 +2,15 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages"
 import { getModel } from "../config/llmModels.js"
 import fs from "fs/promises"
-import { deductCredits } from "../utils/deductCredits.js"
+import { refundCredits, reserveCredits } from "../utils/deductCredits.js"
 import { checkAgentLimit } from "../config/agentLimit.js"
 export const imageAnalyzer =async (state) => {
-     await checkAgentLimit(state.userId,"image")
-    try {
+     let reserved = false
+     let reservation = null
+     try {
+     await checkAgentLimit(state.userId,"vision")
+     reservation = await reserveCredits(state.userId,"vision")
+     reserved = true
         const llm = await getModel("imageAnalyzer")
 
         const imageBuffer = await fs.readFile(state.file.path)
@@ -47,13 +51,16 @@ Rules:
         ]
 
 const response=await llm.invoke(messages)
- await deductCredits(state.userId,"vision")
 return {
     ...state,
     aiResponse:response.content
 }
 
     } catch (error) {
+       // The reservation is taken before this try block, so reaching here always
+       // means it succeeded -- no guard needed. A swallowed failure is still a
+       // failure the user must not pay for.
+       await refundCredits(state.userId,"vision",reservation?.reservationId)
        console.log(error)
          return {
             ...state,

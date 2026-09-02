@@ -1,9 +1,15 @@
 import { checkAgentLimit } from "../config/agentLimit.js"
 import { getModel } from "../config/llmModels.js"
-import { deductCredits } from "../utils/deductCredits.js"
+import { refundCredits, reserveCredits } from "../utils/deductCredits.js"
 export const codingAgent=async (state) => {
+let reserved=false
+let reservation=null
 try {
     await checkAgentLimit(state.userId,"coding")
+    // One reservation up front covers all three intent branches below, including
+    // PROGRAM_GENERATION which used to return without ever charging.
+    reservation=await reserveCredits(state.userId,"coding")
+    reserved=true
    const intentLlm=await getModel("intent")
    const llm=await getModel("coding")
    const intentRes=await intentLlm.invoke(`
@@ -125,7 +131,6 @@ ${state.prompt}
         const start=raw.indexOf("{")
         const end=raw.lastIndexOf("}")
         const data=JSON.parse(start!==-1 && end>start ? raw.slice(start,end+1) : raw)
-        await deductCredits(state.userId,"coding")
         return {
             ...state,
             aiResponse:"Project Generated Successfully.",
@@ -169,13 +174,15 @@ ${state.prompt}
         `)
 
    const data=res.content   
-   await deductCredits(state.userId,"coding")
    return {
     ...state,
     aiResponse:data,
     artifacts:[]
    }  
 } catch (error) {
+   // Covers a throw from any of the three branches above, including the
+   // swallowed-and-returned message path, which the user must not pay for.
+   if(reserved) await refundCredits(state.userId,"coding",reservation?.reservationId)
    console.log(error)
          return {
             ...state,

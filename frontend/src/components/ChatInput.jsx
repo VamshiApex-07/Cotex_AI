@@ -6,6 +6,7 @@ import { createConversation } from '../features/createConversation'
 import { updateConversation } from '../features/updateConversation'
 import { addMessage, setArtifacts, setIsLoading, setActiveAgent } from '../redux/messageSlice'
 import { addConversation, setConvTitle, setSelectedConversation } from '../redux/conversationSlice'
+import { useToast } from '../hooks/useToast'
 
 function ChatInput() {
   const [value, setValue] = useState("")
@@ -15,12 +16,12 @@ function ChatInput() {
 
   const { selectedConversation } = useSelector(state => state.conversation)
   const { isLoading } = useSelector(state => state.message)
+  const toast = useToast()
 
   const recognitionRef = useRef(null)
   const fileRef = useRef(null)
   const dispatch = useDispatch()
 
-  // Safely memoize image preview URL to avoid memory leaks on re-renders
   const previewUrl = useMemo(() => {
     if (selectedFile && selectedFile.type.startsWith("image/")) {
       return URL.createObjectURL(selectedFile)
@@ -28,7 +29,6 @@ function ChatInput() {
     return null
   }, [selectedFile])
 
-  // Revoke object URL when file changes or component unmounts
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -37,7 +37,6 @@ function ChatInput() {
     }
   }, [previewUrl])
 
-  // Speech recognition initialization
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) return
@@ -84,39 +83,57 @@ function ChatInput() {
     dispatch(setIsLoading(true))
     let conversation = selectedConversation
 
-    if (!conversation) {
-      const conv = await createConversation()
-      dispatch(setSelectedConversation(conv))
-      dispatch(addConversation(conv))
-      conversation = conv
+    try {
+        if (!conversation) {
+            const conv = await createConversation()
+            if(conv){
+                dispatch(setSelectedConversation(conv))
+                dispatch(addConversation(conv))
+                conversation = conv
+            } else {
+                dispatch(setIsLoading(false))
+                return
+            }
+        }
+
+        if (conversation?.title === "New Chat" && value.trim()) {
+            const title = value.trim().slice(0, 200)
+            const updated = await updateConversation({ id: conversation?._id, title })
+            if (updated) {
+                dispatch(setConvTitle({ conversationId: conversation?._id, title }))
+            } else {
+                toast.error("Failed to save conversation title")
+            }
+        }
+
+        const formData = new FormData()
+        formData.append("prompt", value.trim())
+        formData.append("conversationId", conversation?._id)
+        formData.append("agent", selectedAgent.toLowerCase())
+        if (selectedFile) {
+            formData.append("file", selectedFile)
+        }
+
+        dispatch(addMessage({ role: "user", content: value.trim() }))
+
+        setValue("")
+        setSelectedFile(null)
+        if (fileRef.current) fileRef.current.value = ""
+
+        const data = await sendMessage(formData)
+        dispatch(setIsLoading(false))
+        if (data?.error) {
+            toast.error(data.message || "Failed to send message. Please try again.")
+            return
+        }
+        if (data?.agent) dispatch(setActiveAgent(data.agent))
+        dispatch(setArtifacts(data?.artifacts || []))
+        dispatch(addMessage({ role: "assistant", content: data?.answer, images: data?.images }))
+    } catch (error) {
+        console.error("Failed to send message:", error)
+        dispatch(setIsLoading(false))
+        toast.error("Failed to send message. Please try again.")
     }
-
-    if (conversation?.title === "New Chat" && value.trim()) {
-      await updateConversation({ id: conversation?._id, title: value.trim() })
-      dispatch(setConvTitle({ conversationId: conversation?._id, title: value.slice(0, 40) }))
-    }
-
-    const formData = new FormData()
-    formData.append("prompt", value.trim())
-    formData.append("conversationId", conversation?._id)
-    formData.append("agent", selectedAgent.toLowerCase())
-    if (selectedFile) {
-      formData.append("file", selectedFile)
-    }
-
-    dispatch(addMessage({ role: "user", content: value.trim() }))
-    
-    // Clear inputs
-    setValue("")
-    setSelectedFile(null)
-    if (fileRef.current) fileRef.current.value = ""
-
-    const data = await sendMessage(formData)
-    dispatch(setIsLoading(false))
-    // Update activeAgent with what the router actually picked (critical for auto mode)
-    if (data?.agent) dispatch(setActiveAgent(data.agent))
-    dispatch(setArtifacts(data?.artifacts || []))
-    dispatch(addMessage({ role: "assistant", content: data?.answer, images: data?.images }))
   }
 
   const agents = [
@@ -141,101 +158,93 @@ function ChatInput() {
   const isSendDisabled = (!value.trim() && !selectedFile) || isLoading
 
   return (
-    <div className='w-full overflow-hidden px-3 md:px-5 py-4 border-t border-white/[0.06] bg-[#0d0f14]'>
-      <div className='flex flex-col gap-2 bg-white/[0.03] border border-white/[0.07] rounded-2xl px-4 pt-3.5 pb-3'>
+    <div className='w-full px-4 md:px-6 py-4 border-t border-slate-800/50 bg-gradient-to-t from-[#08090d] to-transparent'>
+      <div className='flex flex-col gap-3 rounded-2xl border border-slate-800/50 bg-slate-900/50 backdrop-blur-xl px-4 pt-3.5 pb-3 shadow-xl shadow-black/20'>
 
-        {/* Agent Selector */}
-        <div className='flex w-full md:w-[80%] gap-2 pr-2 flex-wrap'>
+        <div className='flex w-full gap-2 flex-wrap'>
           {agents.map((agent) => {
             const isActive = selectedAgent === agent.label
             const Icon = agent.icon
             return (
-              <div
+              <button
                 key={agent.id}
                 onClick={() => setSelectedAgent(agent.label)}
                 className={`
-                  flex-shrink-0 cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium border transition-all
+                  flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer
                   ${isActive
-                    ? "bg-gradient-to-r from-indigo-500 to-violet-600 text-white border-transparent shadow-[0_1px_8px_rgba(99,102,241,.35)]"
-                    : "bg-white/[0.03] text-slate-400 border-white/[0.06] hover:bg-white/[0.07]"
+                    ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white border-transparent shadow-lg shadow-violet-500/25'
+                    : 'bg-slate-800/50 text-slate-400 border-slate-700/50 hover:bg-slate-800 hover:border-slate-600/50'
                   }
                 `}
               >
-                <Icon size={14} className={isActive ? "text-white" : "text-slate-500"} />
+                <Icon size={13} className={isActive ? 'text-white' : 'text-slate-500'} />
                 {agent.label}
-              </div>
+              </button>
             )
           })}
         </div>
 
-        {/* File Preview Section */}
         {selectedFile && (
-          <div className='my-2'>
-            <div className='inline-flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-2.5'>
-              {selectedFile.type === "application/pdf" ? (
-                <FileText size={20} className="text-red-400 shrink-0" />
-              ) : previewUrl ? (
-                <img src={previewUrl} alt="Preview" className="h-10 w-10 rounded-lg object-cover shrink-0" />
-              ) : null}
-
-              <div className='min-w-0 flex-1'>
-                <p className='text-xs text-white truncate max-w-[200px]'>
-                  {selectedFile.name}
-                </p>
-                <p className='text-[10px] text-slate-500'>
-                  {formatFileSize(selectedFile.size)}
-                </p>
+          <div className='flex items-center gap-3 rounded-xl bg-slate-800/50 border border-slate-700/50 p-2.5'>
+            {selectedFile.type === "application/pdf" ? (
+              <div className='w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center'>
+                <FileText size={18} className="text-red-400" />
               </div>
+            ) : previewUrl ? (
+              <img src={previewUrl} alt="Preview" className="w-10 h-10 rounded-lg object-cover ring-2 ring-slate-700" />
+            ) : null}
 
-              <button 
-                type="button"
-                className='ml-1 p-1 hover:bg-white/10 rounded-lg transition-colors cursor-pointer' 
-                onClick={() => { 
-                  setSelectedFile(null)
-                  if (fileRef.current) fileRef.current.value = "" 
-                }}
-              >
-                <X size={14} className='text-slate-400 hover:text-white' />
-              </button>
+            <div className='flex-1 min-w-0'>
+              <p className='text-xs text-slate-200 truncate font-medium'>{selectedFile.name}</p>
+              <p className='text-[10px] text-slate-500'>{formatFileSize(selectedFile.size)}</p>
             </div>
+
+            <button
+              type="button"
+              className='w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all cursor-pointer'
+              onClick={() => {
+                setSelectedFile(null)
+                if (fileRef.current) fileRef.current.value = ""
+              }}
+            >
+              <X size={14} />
+            </button>
           </div>
         )}
 
-        {/* Text Input */}
-        <textarea
-          placeholder='Ask Anything...'
-          onChange={(e) => setValue(e.target.value)}
-          value={value}
-          disabled={isLoading}
-          className="w-full bg-transparent outline-none resize-none text-[14px] text-slate-200 placeholder:text-slate-600 leading-relaxed [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-50"
-          rows={3}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              handleSendMessage()
-            }
-          }}
-        />
+        <div className='flex items-end gap-2'>
+          <textarea
+            placeholder='Ask Anything...'
+            onChange={(e) => setValue(e.target.value)}
+            value={value}
+            disabled={isLoading}
+            className="flex-1 bg-transparent outline-none resize-none text-[14px] text-slate-200 placeholder:text-slate-600 leading-relaxed [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-50"
+            rows={2}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSendMessage()
+              }
+            }}
+          />
 
-        {/* Action Buttons */}
-        <div className='flex items-center justify-between pt-1'>
-          <div className='flex items-center gap-1'>
-            <input 
-              type="file" 
-              accept='.pdf,image/*' 
-              hidden 
-              ref={fileRef} 
+          <div className='flex items-center gap-1.5 pb-0.5'>
+            <input
+              type="file"
+              accept='.pdf,image/*'
+              hidden
+              ref={fileRef}
               onChange={(e) => {
                 const file = e.target.files[0]
                 if (file) {
                   setSelectedFile(file)
                 }
-              }} 
+              }}
             />
 
-            <button 
+            <button
               type="button"
-              className='flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-white/[0.05] transition-all bg-transparent cursor-pointer' 
+              className='w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-slate-800/80 transition-all cursor-pointer disabled:opacity-50'
               onClick={() => fileRef.current?.click()}
               title="Attach File"
             >
@@ -246,26 +255,28 @@ function ChatInput() {
               type="button"
               onClick={toggleMic}
               title={listening ? "Stop Listening" : "Start Voice Input"}
-              className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all cursor-pointer ${
-                listening ? "bg-red-500 text-white" : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.05]"
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                listening
+                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                  : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/80'
               }`}
             >
-              {listening ? <Mic size={16} /> : <MicOff size={16} />} 
+              {listening ? <Mic size={16} /> : <MicOff size={16} />}
+            </button>
+
+            <button
+              type="button"
+              disabled={isSendDisabled}
+              onClick={handleSendMessage}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                !isSendDisabled
+                  ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-105'
+                  : 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
+              }`}
+            >
+              <Send size={15} />
             </button>
           </div>
-
-          <button
-            type="button"
-            disabled={isSendDisabled}
-            onClick={handleSendMessage}
-            className={`flex items-center justify-center w-8 h-8 rounded-lg border-none transition-all duration-150 ${
-              !isSendDisabled 
-                ? "bg-gradient-to-br from-indigo-500 to-violet-700 hover:opacity-90 text-white cursor-pointer" 
-                : "bg-white/[0.05] text-slate-600 cursor-not-allowed"
-            }`}
-          >
-            <Send size={15} />
-          </button>
         </div>
 
       </div>

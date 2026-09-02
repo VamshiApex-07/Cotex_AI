@@ -6,8 +6,9 @@ import { RefreshCw } from "lucide-react"
 import Home from "./pages/Home"
 import AuthPage from "./pages/AuthPage"
 import BrandMark from "./components/BrandMark"
+import { ToastProvider } from "./components/Toast"
 import getCurrentUser from "./features/getCurrentUser"
-import { setAuthStatus, signedIn } from "./redux/userSlice"
+import { setAuthStatus, setAuthError, signedIn } from "./redux/userSlice"
 
 // Held on screen while /api/me resolves. Without it, the first paint has to
 // guess, and it guessed "signed out" — which is why the login UI used to flash
@@ -55,8 +56,7 @@ const BootError = ({ onRetry }) => (
 
 function App() {
     const dispatch = useDispatch()
-    const authStatus = useSelector((state) => state.user.authStatus)
-    const [bootError, setBootError] = useState(false)
+    const { authStatus, authError } = useSelector((state) => state.user)
     const [attempt, setAttempt] = useState(0)
 
     useEffect(() => {
@@ -66,17 +66,15 @@ function App() {
             try {
                 const user = await getCurrentUser()
                 if (cancelled) return
-                // null is a real answer — no session — not a failure.
                 if (user) dispatch(signedIn(user))
                 else dispatch(setAuthStatus("guest"))
             } catch (error) {
                 if (cancelled) return
                 console.error("[auth] session check failed", error)
-                setBootError(true)
+                dispatch(setAuthError(error))
             }
         }
 
-        setBootError(false)
         dispatch(setAuthStatus("checking"))
         bootstrap()
 
@@ -85,13 +83,14 @@ function App() {
         }
     }, [dispatch, attempt])
 
-    if (bootError) return <BootError onRetry={() => setAttempt((n) => n + 1)} />
+    if (authError) return <BootError onRetry={() => {
+        dispatch(setAuthError(null))
+        setAttempt((n) => n + 1)
+    }} />
     if (authStatus === "checking") return <BootSplash />
-    if (authStatus === "authenticated") return <Home />
+    if (authStatus === "authenticated") return <ToastProvider><Home /></ToastProvider>
 
-    // "guest" and "authenticating" both keep AuthPage mounted, so the button
-    // shows its own loading state rather than the screen swapping mid-flow.
-    return <AuthPage />
+    return <ToastProvider><AuthPage /></ToastProvider>
 }
 
 export default App

@@ -5,7 +5,7 @@ import { Document } from "@langchain/core/documents"
 import { vectorStore } from "../config/vectorDb.js"
 import { getModel } from "../config/llmModels.js"
 import { HumanMessage, SystemMessage } from "@langchain/core/messages"
-import { deductCredits } from "../utils/deductCredits.js"
+import { refundCredits, reserveCredits } from "../utils/deductCredits.js"
 import { checkAgentLimit } from "../config/agentLimit.js"
 
 const SCANNED_TEXT_THRESHOLD = 150
@@ -50,8 +50,12 @@ const visionOCR = async (buffer) => {
 
 export const pdfRag = async (state) => {
   let collectionName = null
+  let reserved = false
+  let reservation = null
   try {
     await checkAgentLimit(state.userId, "pdf")
+    reservation = await reserveCredits(state.userId, "pdf")
+    reserved = true
     console.log("[PDFRAG] Starting pipeline for file:", state.file.path)
 
     const buffer = fs.readFileSync(state.file.path)
@@ -112,7 +116,6 @@ Rules:
     ]
 
     const response = await llm.invoke(messages)
-    await deductCredits(state.userId, "pdf")
 
     return {
       ...state,
@@ -120,6 +123,8 @@ Rules:
     }
 
   } catch (error) {
+    // A swallowed failure is still a failure the user must not pay for.
+    if (reserved) await refundCredits(state.userId, "pdf", reservation?.reservationId)
     console.error("[PDFRAG] Error:", error)
     return {
       ...state,
@@ -127,7 +132,7 @@ Rules:
     }
   } finally {
     try {
-      if (fs.existsSync(state.file.path)) {
+      if (state.file?.path && fs.existsSync(state.file.path)) {
         await fs.promises.unlink(state.file.path)
       }
     } catch (cleanupError) {

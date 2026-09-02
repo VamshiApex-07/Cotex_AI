@@ -21,19 +21,35 @@ const artifactSchema=new mongoose.Schema({
 const messageSchema=new mongoose.Schema({
     conversationId:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:"Conversation"
+        ref:"Conversation",
+        required:true
+    },
+    // Denormalised from the parent conversation so a message can be scoped to an
+    // owner without a join. Pre-existing documents predate this field and need a
+    // backfill before any query is allowed to filter on it.
+    userId:{
+        type:String,
+        required:true,
+        index:false
     },
     role:{
         type:String,
-        enum:["user","assistant"]
+        enum:["user","assistant"],
+        required:true
     },
-    content:String,
+    content:{
+        type:String,
+        maxlength:200000
+    },
     images:[String],
     artifacts:[artifactSchema]
 
 },{
     timestamps:true
 })
+
+// Exact access pattern of getMessages (filter conversationId, sort createdAt desc).
+messageSchema.index({conversationId:1,createdAt:-1})
 
 const Message=mongoose.model("Message",messageSchema)
 export default Message

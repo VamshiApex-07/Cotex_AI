@@ -1,5 +1,21 @@
 services:
   redis:
-    image: redis
+    # Pinned: `image: redis` floats to :latest, so a host restart could swap the
+    # major version underneath live sessions. Sessions and the agent rate
+    # limiter both live here, so appendonly persistence means a restart does not
+    # sign every user out.
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis-data:

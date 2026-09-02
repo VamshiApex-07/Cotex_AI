@@ -10,7 +10,7 @@ import { auth } from "../../utils/firebase"
 // so the caller clears local state regardless.
 async function logOut() {
     try {
-        await api.get("/api/auth/logout")
+        await api.post("/api/auth/logout")
     } catch (error) {
         console.error("[auth] server logout failed", error)
     }
