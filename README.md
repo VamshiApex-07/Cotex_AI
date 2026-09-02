@@ -1,11 +1,11 @@
 # CortexAI
 
 <p align="center">
-  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React">
-  <img src="https://img.shields.io/badge/LangGraph-Orchestrated-2E7D32?logo=langchain" alt="LangGraph">
-  <img src="https://img.shields.io/badge/Multi--Agent-AI-FF6B6B" alt="Multi-Agent">
-  <img src="https://img.shields.io/badge/PDF-RAG-9C27B0" alt="PDF RAG">
-  <img src="https://img.shields.io/badge/Credit--Based-Billing-FF9800" alt="Credit System">
+  <img src="https://img.shields.io/badge/React-19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19">
+  <img src="https://img.shields.io/badge/LangGraph-Orchestrated-1C2D42?style=for-the-badge&logo=langchain&logoColor=3178C6" alt="LangGraph">
+  <img src="https://img.shields.io/badge/Multi--Agent-AI-7B1FA2?style=for-the-badge&logo=pypy&logoColor=white" alt="Multi-Agent AI">
+  <img src="https://img.shields.io/badge/PDF-RAG-D32F2F?style=for-the-badge&logo=adobeacrobatreader&logoColor=white" alt="PDF RAG">
+  <img src="https://img.shields.io/badge/Credit--Based-Billing-E65100?style=for-the-badge&logo=simpleanalytics&logoColor=white" alt="Credit System">
 </p>
 
 > An **AI-native productivity platform** powered by a LangGraph multi-agent orchestrator, PDF RAG pipeline, and a credit-based billing engine.
