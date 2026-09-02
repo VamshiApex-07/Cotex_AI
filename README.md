@@ -1,8 +1,31 @@
 # CortexAI
 
-> An AI-native productivity platform powered by a LangGraph multi-agent orchestrator, PDF RAG pipeline, and a credit-based billing engine.
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React">
+  <img src="https://img.shields.io/badge/LangGraph-Orchestrated-2E7D32?logo=langchain" alt="LangGraph">
+  <img src="https://img.shields.io/badge/Multi--Agent-AI-FF6B6B" alt="Multi-Agent">
+  <img src="https://img.shields.io/badge/PDF-RAG-9C27B0" alt="PDF RAG">
+  <img src="https://img.shields.io/badge/Credit--Based-Billing-FF9800" alt="Credit System">
+</p>
+
+> An **AI-native productivity platform** powered by a LangGraph multi-agent orchestrator, PDF RAG pipeline, and a credit-based billing engine.
 
 **Chat · Research · Code · Documents · Slides · Images** — every request routed to a specialist agent.
+
+---
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| 🤖 **8 Specialist Agents** | Chat, Search, Code, PDF, PPT, Vision, PDF RAG, Image Analyzer |
+| 🔄 **Smart Routing** | Auto-classifies requests to the optimal agent |
+| 📄 **PDF RAG Pipeline** | Upload PDFs, ask questions, get accurate answers |
+| 💳 **Credit-Based Billing** | Pay-as-you-go with atomic transaction safety |
+| 🔒 **Enterprise Security** | Session cookies, HMAC verification, path traversal protection |
+| 🧠 **Long Memory** | Conversation history persisted across sessions |
+| 🎨 **Rich Artifacts** | Markdown, code blocks, images, generated presentations |
+| 🔍 **Web Search** | Real-time results with Tavily integration |
 
 ---
 
@@ -19,6 +42,31 @@
 | **Payments** | Razorpay (orders + HMAC verification) |
 | **File Storage** | AWS S3 |
 | **Search** | Tavily |
+
+---
+
+## Quick Start
+
+```bash
+# Clone the repo
+git clone https://github.com/yourusername/cortexai.git
+cd cortexai
+
+# Start Redis
+docker compose -f backend/docker-compose.yml up -d redis
+
+# Start backend services
+cd backend/gateway && node index.js &
+cd backend/services/auth && node index.js &
+cd backend/services/chat && node index.js &
+cd backend/services/agent && node index.js &
+cd backend/services/billing && node index.js &
+
+# Start frontend
+cd frontend && npm install && npm run dev
+```
+
+Open `http://localhost:5173` → Sign in with Google.
 
 ---
 
@@ -227,52 +275,47 @@ CortexAI/
 │   │   └── utils/proxyWithHeader.js        # Service proxy with x-user-id injection
 │   ├── services/
 │   │   ├── auth/                     # Identity, sessions, credit ledger
-│   │   │   ├── controllers/          # login, logout, reserveCredits, refundCredits, updateUserPayment
-│   │   │   ├── models/user.model.js  # Mongoose schema: firebaseUid, plan, credits, totalCredits
+│   │   │   ├── controllers/          # login, logout, reserveCredits, refundCredits
+│   │   │   ├── models/user.model.js  # Mongoose schema
 │   │   │   └── routes/              # /login, /logout (public) + /internal/* (service-only)
 │   │   ├── agent/                   # LangGraph orchestration + all AI agents
-│   │   │   ├── agents/             # chat, search, coding, pdf, ppt, vision, pdfRag, imageAnalyzer
-│   │   │   ├── config/             # llmModels, memory, agentLimit, multer, s3, tavily, vectorDb
+│   │   │   ├── agents/             # chat, search, coding, pdf, ppt, vision, pdfRag
+│   │   │   ├── config/             # llmModels, memory, agentLimit, multer, s3, tavily
 │   │   │   ├── graph/              # StateGraph, router, agentState
-│   │   │   └── utils/             # deductCredits, generatePdf, generatePpt, s3, getMessages
+│   │   │   └── utils/             # deductCredits, generatePdf, generatePpt, s3
 │   │   ├── billing/                # Razorpay integration
 │   │   │   ├── controller/         # createOrder, verifyPayment
 │   │   │   └── models/payment.model.js  # unique orderId + sparse paymentId
 │   │   └── chat/                   # Conversation + message persistence
-│   │       ├── controllers/         # createConversation, getConversations, saveMessage, getMessages
-│   │       └── models/             # conversation (userId+updatedAt index), message (conversationId+createdAt index)
+│   │       ├── controllers/         # createConversation, getConversations, saveMessage
+│   │       └── models/             # conversation, message schemas
 │   └── shared/
-│       ├── auth/internalAuth.js    # requireUser, requireInternal, INTERNAL_HEADER, safeEqual
-│       ├── config/plans.js         # PLANS, PURCHASABLE_PLAN_IDS (shared by billing + auth)
+│       ├── auth/internalAuth.js    # requireUser, requireInternal, INTERNAL_HEADER
+│       ├── config/plans.js         # PLANS, PURCHASABLE_PLAN_IDS
 │       ├── config/agentCosts.js    # AGENT_COSTS (single source of truth)
-│       ├── http/cookies.js        # parseCookies, readCookie (replaces missing cookie-parser)
+│       ├── http/cookies.js        # parseCookies, readCookie
 │       └── redis/redis.js         # ioredis singleton + global error handler
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── ChatArea.jsx        # Conversation view + message fetch
-│   │   │   ├── ChatInput.jsx       # Agent selector, voice input, file upload, send
-│   │   │   ├── SideBar.jsx        # Conversation list, billing drawer trigger, logout
-│   │   │   ├── MessageList.jsx     # Scroll-to-bottom, empty state, message rendering
+│   │   │   ├── ChatInput.jsx       # Agent selector, voice input, file upload
+│   │   │   ├── SideBar.jsx        # Conversation list, billing drawer
+│   │   │   ├── MessageList.jsx     # Scroll-to-bottom, empty state
 │   │   │   ├── MessageBubble.jsx   # Markdown + code highlighting + image lightbox
 │   │   │   ├── Artifact.jsx        # Monaco editor + sandboxed iframe preview
 │   │   │   ├── BillingDrawer.jsx    # Plan selection + Razorpay checkout
-│   │   │   ├── LoadingAnimation.jsx # Per-agent loading animations (motion/react)
 │   │   │   └── Toast.jsx           # AnimatePresence toast notifications
 │   │   ├── features/               # Redux Toolkit async thunks
-│   │   │   ├── login.js, logOut.js, getCurrentUser.js
-│   │   │   ├── getConversations.js, getMessages.js
-│   │   │   ├── createConversation.js, updateConversation.js
-│   │   │   ├── sendMessage.js
-│   │   │   └── createOrder.js, verifyPayment.js
-│   │   ├── redux/                 # userSlice, conversationSlice, messageSlice
+│   │   ├── redux/                  # userSlice, conversationSlice, messageSlice
 │   │   ├── pages/Home.jsx, AuthPage.jsx
 │   │   ├── contexts/ToastContext.jsx
 │   │   └── hooks/useToast.js
 │   └── utils/
 │       ├── axios.js               # API client with credentials
-│       ├── firebase.js             # Firebase app init + Google provider
+│       ├── firebase.js            # Firebase app init + Google provider
 │       └── authErrors.js          # Firebase → user-friendly error messages
+└── docker-compose.yml             # Redis + Qdrant containers
 ```
 
 ---
@@ -332,24 +375,16 @@ VITE_RAZORPAY_KEY_ID=<razorpay key id>
 
 ---
 
-## Running Locally
+## Key Benefits
 
-```bash
-# 1. Start Redis
-docker compose -f backend/docker-compose.yml up -d redis
-
-# 2. Backend services (each in its own terminal)
-cd backend/gateway       && node index.js
-cd backend/services/auth && node index.js
-cd backend/services/chat && node index.js
-cd backend/services/agent && node index.js
-cd backend/services/billing && node index.js
-
-# 3. Frontend
-cd frontend && npm install && npm run dev
-```
-
-Open `http://localhost:5173` → Sign in with Google.
+| Benefit | How It's Achieved |
+|---------|-------------------|
+| **Zero Negative Balance** | Atomic MongoDB `findOneAndUpdate` with `credits >= cost` filter |
+| **No Free Work** | Credits reserved before any provider API call |
+| **Exactly-Once Refunds** | Redis reservation IDs with 15-min TTL prevent double-refunds |
+| **Service Isolation** | Microservices + API gateway = independent scaling & failure isolation |
+| **Upload Safety** | UUID filenames, allowlist mimetypes, path traversal checks |
+| **Secure Artifacts** | DOMPurify sanitize + sandboxed iframe preview |
 
 ---
 
@@ -400,3 +435,5 @@ Open `http://localhost:5173` → Sign in with Google.
 |--------|------|-------------|
 | `POST` | `/api/billing/create` | Create Razorpay order |
 | `POST` | `/api/billing/verify` | Verify signature + capture + grant credits |
+
+
