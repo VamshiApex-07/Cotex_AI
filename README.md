@@ -33,9 +33,9 @@
 
 | Layer | Technology |
 |-------|------------|
-| **Frontend** | React 19 · Vite 8 · Redux Toolkit · Tailwind CSS v4 |
+| **Frontend** | React 19 · Vite 8 · Redux Toolkit · Vanilla CSS |
 | **Orchestration** | LangGraph (`StateGraph`) · LangChain |
-| **Agents** | OpenAI · Gemini 2.5 Flash · DeepSeek Chat · FLUX.1-schnell |
+| **Agents** | Groq (DeepSeek via Groq API) · Gemini 2.5 Flash · FLUX.1-schnell (HuggingFace) |
 | **Vector DB** | Qdrant · HuggingFace Embeddings (`BAAI/bge-small-en-v1.5`) |
 | **Databases** | MongoDB (Mongoose) · Redis (ioredis) |
 | **Auth** | Firebase Admin · Session cookies |
@@ -169,16 +169,16 @@ flowchart TD
 
 ### Agents
 
-| Agent | Model | Input | Output |
-|-------|-------|-------|--------|
-| **Chat** | DeepSeek (Groq) | Text | Markdown response |
-| **Search** | DeepSeek (Groq) + Tavily | Text | Web results + images |
-| **Coding** | Gemini 2.5 Flash | Text | Markdown + project artifacts |
-| **PDF** | Gemini 2.5 Flash | Text | `.pdf` via PDFKit |
-| **PPT** | Gemini 2.5 Flash + FLUX.1-schnell | Text | `.pptx` via PptxGenJS |
-| **Vision** | FLUX.1-schnell (HuggingFace) | Text prompt | Generated image → S3 |
-| **PDF RAG** | Gemini 2.5 Flash + Qdrant | Uploaded PDF | Answer from document |
-| **Image Analyzer** | Gemini 2.5 Flash | Uploaded image | Analysis + OCR |
+| Agent | Model | Rate Limit | Input | Output |
+|-------|-------|-----------|-------|--------|
+| **Chat** | DeepSeek via Groq | 20 req/min | Text | Markdown response |
+| **Search** | DeepSeek via Groq + Tavily | 5 req/min | Text | Web results + images + chat synthesis |
+| **Coding** | Gemini 2.5 Flash | 5 req/min | Text | Markdown + project artifacts |
+| **PDF** | Gemini 2.5 Flash | 5 req/min | Text | `.pdf` via PDFKit |
+| **PPT** | Gemini 2.5 Flash | 5 req/min | Text | `.pptx` via PptxGenJS |
+| **Vision** | FLUX.1-schnell (HuggingFace) | 5 req/min | Text prompt | Generated image → S3 presigned URL |
+| **PDF RAG** | Gemini 2.5 Flash + Qdrant | — | Uploaded PDF + question | Answer from document |
+| **Image Analyzer** | Gemini 2.5 Flash | — | Uploaded image | Text analysis / OCR |
 
 ---
 
@@ -201,7 +201,8 @@ flowchart TD
 ```
 
 - **Atomic debit**: MongoDB `findOneAndUpdate` with `credits >= cost` filter — no negative balance possible.
-- **Exactly-once refund**: Reservation ID stored in Redis with 15-min TTL; auth claims it before crediting.
+- **Exactly-once refund**: Reservation ID (UUID v4, required) stored in Redis with 15-min TTL; auth claims and deletes it before crediting — rejected without a valid UUID to prevent unbacked credit minting.
+- **Search→Chat credit safety**: Search pre-reserves credits once; Chat agent skips re-deduction when `creditsPreReserved` flag is set in LangGraph state. If Chat generation fails, the upstream search reservation is refunded.
 - **Price table** (`shared/config/agentCosts.js`): Single source of truth shared by billing and auth.
 
 ---
@@ -277,7 +278,7 @@ CortexAI/
 │   │   ├── auth/                     # Identity, sessions, credit ledger
 │   │   │   ├── controllers/          # login, logout, reserveCredits, refundCredits
 │   │   │   ├── models/user.model.js  # Mongoose schema
-│   │   │   └── routes/              # /login, /logout (public) + /internal/* (service-only)
+│   │   │   └── routes/              # POST /login, POST /logout (public) + /internal/* (service-only)
 │   │   ├── agent/                   # LangGraph orchestration + all AI agents
 │   │   │   ├── agents/             # chat, search, coding, pdf, ppt, vision, pdfRag
 │   │   │   ├── config/             # llmModels, memory, agentLimit, multer, s3, tavily
@@ -306,8 +307,8 @@ CortexAI/
 │   │   │   ├── Artifact.jsx        # Monaco editor + sandboxed iframe preview
 │   │   │   ├── BillingDrawer.jsx    # Plan selection + Razorpay checkout
 │   │   │   └── Toast.jsx           # AnimatePresence toast notifications
-│   │   ├── features/               # Redux Toolkit async thunks
-│   │   ├── redux/                  # userSlice, conversationSlice, messageSlice
+│   │   ├── features/               # API call helpers (sendMessage, getMessages, createConversation…)
+│   │   ├── redux/                  # userSlice · conversationSlice (loadingConversationId) · messageSlice
 │   │   ├── pages/Home.jsx, AuthPage.jsx
 │   │   ├── contexts/ToastContext.jsx
 │   │   └── hooks/useToast.js
@@ -359,6 +360,7 @@ AWS_SECRET_KEY=...
 
 # Vector DB
 QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=<qdrant api key>   # Required for cloud-hosted Qdrant instances
 
 # Razorpay
 RAZORPAY_KEY_ID=<key_id>
@@ -395,10 +397,12 @@ VITE_RAZORPAY_KEY_ID=<razorpay key id>
 | Identity forgery | `x-user-id` written by gateway only; client-supplied headers stripped before proxy |
 | Session fixation | New login invalidates previous Redis session; UUID v4 format check before lookup |
 | Credit theft | Reservation debits before provider call; `credits >= cost` conditional update |
+| Credit inflation exploit | `refundCredits` requires a valid UUID v4 `reservationId`; unbacked refund calls rejected with HTTP 400 |
+| Double-charge (Search→Chat) | LangGraph state carries `creditsPreReserved` flag; Chat node skips re-deduction when set |
 | Payment replay | `status: "created"` compare-and-swap in MongoDB; HMAC signature + capture check |
-| Unauthenticated plan grant | Internal routes not proxied by gateway; require `x-internal-secret` |
+| Unauthenticated plan grant | Internal routes not proxied by gateway; require `x-internal-secret` (constant-time SHA-256 compare) |
 | Path traversal (uploads) | Filenames are UUIDs; extension from allowlist mimetype only; resolved path checked against upload dir |
-| Script injection in artifacts | DOMPurify sanitize + `<iframe sandbox="allow-scripts">` without `allow-same-origin` |
+| Script injection in artifacts | DOMPurify sanitize on HTML only; JS passed raw inside `<iframe sandbox="allow-scripts">` without `allow-same-origin` |
 | SVG upload XSS | SVG mimetype rejected by `fileFilter`; only PNG/JPEG/WebP/GIF allowed |
 
 ---
@@ -413,6 +417,8 @@ VITE_RAZORPAY_KEY_ID=<razorpay key id>
 | `POST` | `/api/auth/logout` | None | Clear session cookie + Redis keys |
 | `GET` | `/api/me` | Session | Current user object |
 
+> **Note:** `GET /api/auth/logout` was removed — a state-mutating GET is CSRF-triggerable under SameSite=Lax.
+
 ### Chat
 
 | Method | Path | Description |
@@ -422,6 +428,8 @@ VITE_RAZORPAY_KEY_ID=<razorpay key id>
 | `POST` | `/api/chat/update-conversation` | Rename (owner-scoped) |
 | `POST` | `/api/chat/save-message` | Append message + artifacts |
 | `GET` | `/api/chat/get-messages/:id` | Paginated messages |
+
+> **Note:** `GET /api/chat/create-conversation` alias was removed — a state-mutating GET is CSRF-triggerable.
 
 ### Agent
 
