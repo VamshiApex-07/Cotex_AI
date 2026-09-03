@@ -37,8 +37,8 @@ const toSessionUser = (user) => ({
 // development. It was previously hardcoded `false`.
 const cookieOptions = () => ({
     httpOnly: true,
-    secure: process.env.COOKIE_SECURE !== "false",
-    sameSite: process.env.COOKIE_SAMESITE || "lax",
+    secure: false,
+    sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL_SECONDS * 1000
 })
