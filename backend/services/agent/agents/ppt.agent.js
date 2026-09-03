@@ -45,13 +45,12 @@ Topic: ${state.prompt}`
 
     const res = await llm.invoke(prompt)
     
-    // Clean potential markdown backticks from LLM output
-    let cleanJson = res.content.trim()
-    if (cleanJson.startsWith("```")) {
-      cleanJson = cleanJson.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "")
-    }
-
-    const data = JSON.parse(cleanJson)
+    // Clean potential markdown backticks and pre/post commentary from LLM output
+    const raw = String(res.content).trim()
+    const clean = raw.replace(/^```(?:json)?\n?/i, "").replace(/\n?```$/i, "").trim()
+    const start = clean.indexOf("{")
+    const end = clean.lastIndexOf("}")
+    const data = JSON.parse(start !== -1 && end > start ? clean.slice(start, end + 1) : clean)
     const ppt = await generatePpt(data)
     
     const buffer = await ppt.write({

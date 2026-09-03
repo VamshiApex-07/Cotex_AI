@@ -30,9 +30,7 @@ export const proxyWithHeader = (serviceUrl, { authenticated = true } = {}) =>
             if (authenticated) {
                 const userId = srcReq.user?.userId
                 if (!userId) {
-                    // Unreachable while `protect` runs first; a throw here is
-                    // the fail-closed backstop if a route is ever mounted
-                    // without it.
+                    console.log("[proxy] userId missing from session")
                     throw Object.assign(new Error("proxy reached without a resolved session"), { status: 401 })
                 }
                 proxyReqOpts.headers["x-user-id"] = String(userId)
@@ -40,5 +38,9 @@ export const proxyWithHeader = (serviceUrl, { authenticated = true } = {}) =>
 
             proxyReqOpts.headers[INTERNAL_HEADER] = internalSecret()
             return proxyReqOpts
+        },
+        proxyErrorHandler: (err, res, next) => {
+            console.error("[proxy error]:", err?.message)
+            next(err)
         }
     })

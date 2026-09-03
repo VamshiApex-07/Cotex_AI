@@ -45,7 +45,11 @@ ${state.prompt}
         `
 
         const res=await llm.invoke(prompt)
-        const data=JSON.parse(res.content)
+        const raw=String(res.content).trim()
+        const clean=raw.replace(/^```(?:json)?\n?/i,"").replace(/\n?```$/i,"").trim()
+        const start=clean.indexOf("{")
+        const end=clean.lastIndexOf("}")
+        const data=JSON.parse(start!==-1 && end>start ? clean.slice(start,end+1) : clean)
         const pdfBuffer=await generatePdf(data)
 
         const filename=`pdf-${Date.now()}.pdf`

@@ -25,16 +25,21 @@ const fitWithinBudget = (messages) => {
 }
 
 export const chatAgent = async (state) => {
+    if (state.searchFailed) {
+        return state
+    }
 
-   
     let reserved = false
     let reservation = null
+    const isPreReserved = Boolean(state.creditsPreReserved)
 
     try {
-        await checkAgentLimit(state.userId,"chat")
-        reservation = await reserveCredits(state.userId,"chat")
-        reserved = true
-         const llm = await getModel("chat")
+        if (!isPreReserved) {
+            await checkAgentLimit(state.userId,"chat")
+            reservation = await reserveCredits(state.userId,"chat")
+            reserved = true
+        }
+        const llm = await getModel("chat")
 
     const history = await getMemory(state.conversationId, state.userId)
     const recentHistory = (history || []).slice(-8)
@@ -108,13 +113,14 @@ Answer the user using only the above search results.
         // Swallowing the error and returning a message is still a failure the
         // user must not pay for, so the refund belongs on this path too.
         if (reserved) await refundCredits(state.userId,"chat",reservation?.reservationId)
+        if (isPreReserved && state.preReservedAgent && state.preReservationId) {
+            await refundCredits(state.userId, state.preReservedAgent, state.preReservationId)
+        }
         console.log(error)
          return {
             ...state,
             aiResponse:error?.data?.message || "failed to generate chat"
         }
-        
-    
     }
    
 }

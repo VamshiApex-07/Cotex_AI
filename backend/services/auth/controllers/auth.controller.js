@@ -273,20 +273,20 @@ export const refundCredits = async (req, res) => {
             return res.status(400).json({ code: "unknown_agent", message: "Unknown agent." })
         }
 
-        if (typeof reservationId === "string" && UUID_V4.test(reservationId)) {
-            // Claim the reservation before crediting. Claiming first can lose a
-            // refund if the write below fails, which is the safer direction to
-            // fail than crediting twice — and it is logged either way.
-            const claimed = await redis.del(reservationKey(reservationId))
-            if (claimed === 0) {
-                return res.status(200).json({
-                    success: false,
-                    code: "reservation_not_found",
-                    message: "Reservation already settled or expired."
-                })
-            }
-        } else {
-            console.warn(`[auth] refund without reservationId for user ${userId} agent ${agent}; clamped refund only`)
+        if (typeof reservationId !== "string" || !UUID_V4.test(reservationId)) {
+            return res.status(400).json({ code: "invalid_reservation", message: "A valid reservationId is required for refunds." })
+        }
+
+        // Claim the reservation before crediting. Claiming first can lose a
+        // refund if the write below fails, which is the safer direction to
+        // fail than crediting twice — and it is logged either way.
+        const claimed = await redis.del(reservationKey(reservationId))
+        if (claimed === 0) {
+            return res.status(200).json({
+                success: false,
+                code: "reservation_not_found",
+                message: "Reservation already settled or expired."
+            })
         }
 
         const cost = costFor(agent)
@@ -323,4 +323,4 @@ export const refundCredits = async (req, res) => {
 
 // Kept so a missed call site keeps working; the semantics are identical now
 // that the debit happens before the provider call rather than after it.
-export const deductCredits = reserveCredits
+

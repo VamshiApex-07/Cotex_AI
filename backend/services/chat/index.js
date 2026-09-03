@@ -6,7 +6,6 @@ import express from "express"
 import connectDb from "./config/db.js"
 import router from "./routes/chat.routes.js"
 import { assertInternalSecret, requireInternal } from "../../shared/auth/internalAuth.js"
-
 const PORT = process.env.PORT
 const app=express()
 // The gateway proxies with a 50mb ceiling; the express default of 100kb rejected
@@ -18,7 +17,7 @@ app.get("/",(req,res)=>{
     res.json({message:"Hello from Chat"});
 })
 
-app.use("/",requireInternal,router)
+app.use("/", requireInternal, router)
 
 app.use((err,req,res,next)=>{
     console.error("[chat] unhandled error:",err)

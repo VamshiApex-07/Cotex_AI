@@ -4,7 +4,6 @@ import { clearUser } from "./userSlice.js";
 const initialState={
   messages:[],
   artifacts:[],
-  isLoading:false,
   activeAgent:"auto"
 }
 
@@ -21,9 +20,7 @@ const messageSlice=createSlice({
        setArtifacts:(state,action)=>{
         state.artifacts=action.payload
        },
-       setIsLoading:(state,action)=>{
-        state.isLoading=action.payload
-       },
+
        setActiveAgent:(state,action)=>{
         state.activeAgent=action.payload
        }
@@ -36,7 +33,7 @@ const messageSlice=createSlice({
 
 })
 
-export const {setMessages,addMessage,setArtifacts,setIsLoading,setActiveAgent}=messageSlice.actions 
+export const {setMessages,addMessage,setArtifacts,setActiveAgent}=messageSlice.actions 
 export default messageSlice.reducer
 
 

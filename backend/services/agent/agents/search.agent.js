@@ -15,7 +15,10 @@ export const searchAgent = async (state) => {
         return {
             ...state,
             searchResults: slimSearchResults(results),
-            images: results?.images || []
+            images: results?.images || [],
+            creditsPreReserved: true,
+            preReservedAgent: "search",
+            preReservationId: reservation?.reservationId
         }
     } catch (error) {
         // A swallowed search failure is still a failure the user must not pay for.
@@ -25,6 +28,7 @@ export const searchAgent = async (state) => {
             ...state,
             searchResults: [],
             images: [],
+            searchFailed: true,
             aiResponse: error?.data?.message || "failed to search"
         }
     }

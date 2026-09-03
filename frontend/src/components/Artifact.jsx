@@ -60,9 +60,9 @@ const PanelContent = ({ artifacts, collapsed, onClose, onCollapse, onExpand }) =
 
     const canPreview = Boolean(htmlFile)
 
-    const sanitizedCss = DOMPurify.sanitize(cssFile?.content || "", { USE_PROFILES: { css: true } })
-    const sanitizedHtml = DOMPurify.sanitize(htmlFile?.content || "", { USE_PROFILES: { html: true }, ALLOWED_TAGS: ['body', 'head'] })
-    const sanitizedJs = DOMPurify.sanitize(jsFile?.content || "", { USE_PROFILES: { javascript: true } })
+    const sanitizedCss = cssFile?.content || ""
+    const sanitizedHtml = DOMPurify.sanitize(htmlFile?.content || "", { USE_PROFILES: { html: true } })
+    const sanitizedJs = jsFile?.content || ""
 
     const previewDoc = `
   <!DOCTYPE html>

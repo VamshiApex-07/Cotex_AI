@@ -11,10 +11,10 @@ export const visionAgent = async (state) => {
   let reserved = false
   let reservation = null
   try {
-    await checkAgentLimit(state.userId,"image")
+    await checkAgentLimit(state.userId,"vision")
     reservation = await reserveCredits(state.userId,"vision")
     reserved = true
-    const llm = await getModel("image")
+    const llm = await getModel("vision-ocr")
 
     // 1. Refactored prompt engine: Action and main subject first
     const res = await llm.invoke(`

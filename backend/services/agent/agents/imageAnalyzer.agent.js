@@ -57,16 +57,14 @@ return {
 }
 
     } catch (error) {
-       // The reservation is taken before this try block, so reaching here always
-       // means it succeeded -- no guard needed. A swallowed failure is still a
-       // failure the user must not pay for.
-       await refundCredits(state.userId,"vision",reservation?.reservationId)
+       // A swallowed failure is still a failure the user must not pay for,
+       // but only refund if a reservation actually succeeded.
+       if (reserved) await refundCredits(state.userId,"vision",reservation?.reservationId)
        console.log(error)
          return {
             ...state,
             aiResponse:error?.data?.message || "failed to analyze image"
-        
-}
+        }
     }
     finally{
       await fs.unlink(state.file.path)

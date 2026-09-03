@@ -50,6 +50,7 @@ const visionOCR = async (buffer) => {
 
 export const pdfRag = async (state) => {
   let collectionName = null
+  let store = null
   let reserved = false
   let reservation = null
   try {
@@ -90,7 +91,7 @@ export const pdfRag = async (state) => {
     }
 
     collectionName = `pdf-${Date.now()}`
-    const store = await vectorStore(docs, collectionName)
+    store = await vectorStore(docs, collectionName)
 
     let context = ""
     const isSummaryRequest = /(summarize|summary|overview)/i.test(state.prompt)
@@ -132,6 +133,9 @@ Rules:
     }
   } finally {
     try {
+      if (store?.client && collectionName) {
+        await store.client.deleteCollection(collectionName).catch(() => {})
+      }
       if (state.file?.path && fs.existsSync(state.file.path)) {
         await fs.promises.unlink(state.file.path)
       }

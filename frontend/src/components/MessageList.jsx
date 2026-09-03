@@ -4,8 +4,8 @@ import MessageBubble from './MessageBubble'
 import LoadingAnimation from './LoadingAnimation'
 
 function MessageList() {
-    const {selectedConversation}=useSelector(state=>state.conversation)
-    const {messages,isLoading,activeAgent}=useSelector(state=>state.message)
+    const {selectedConversation,loadingConversationId}=useSelector(state=>state.conversation)
+    const {messages,activeAgent}=useSelector(state=>state.message)
     const bottemRef=useRef(null)
    
    useEffect(()=>{
@@ -15,7 +15,7 @@ function MessageList() {
           block:"end"
         })
        })
-   },[messages?.length,isLoading])
+   },[messages?.length,loadingConversationId])
 
 
   return (
@@ -45,7 +45,7 @@ function MessageList() {
             </div>
         ))}
 
-        {isLoading && <LoadingAnimation agent={activeAgent}/>}
+        {selectedConversation && selectedConversation._id === loadingConversationId && <LoadingAnimation agent={activeAgent}/>}
 
         
       </div>

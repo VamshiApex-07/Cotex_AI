@@ -4,8 +4,8 @@ import { useDispatch, useSelector } from 'react-redux'
 import sendMessage from '../features/sendMessage'
 import { createConversation } from '../features/createConversation'
 import { updateConversation } from '../features/updateConversation'
-import { addMessage, setArtifacts, setIsLoading, setActiveAgent } from '../redux/messageSlice'
-import { addConversation, setConvTitle, setSelectedConversation } from '../redux/conversationSlice'
+import { addMessage, setArtifacts, setActiveAgent } from '../redux/messageSlice'
+import { addConversation, setConvTitle, setSelectedConversation, setLoadingConversationId } from '../redux/conversationSlice'
 import { useToast } from '../hooks/useToast'
 
 function ChatInput() {
@@ -14,9 +14,12 @@ function ChatInput() {
   const [selectedFile, setSelectedFile] = useState(null)
   const [listening, setListening] = useState(false)
 
-  const { selectedConversation } = useSelector(state => state.conversation)
-  const { isLoading } = useSelector(state => state.message)
+  const { selectedConversation, loadingConversationId } = useSelector(state => state.conversation)
   const toast = useToast()
+
+  const isThisConversationLoading = selectedConversation
+    ? loadingConversationId === selectedConversation._id
+    : loadingConversationId === 'new'
 
   const recognitionRef = useRef(null)
   const fileRef = useRef(null)
@@ -77,11 +80,11 @@ function ChatInput() {
   }
 
   const handleSendMessage = async () => {
-    if ((!value.trim() && !selectedFile) || isLoading) return
+    if ((!value.trim() && !selectedFile) || isThisConversationLoading) return
 
-    dispatch(setActiveAgent(selectedAgent.toLowerCase()))
-    dispatch(setIsLoading(true))
     let conversation = selectedConversation
+    dispatch(setActiveAgent(selectedAgent.toLowerCase()))
+    dispatch(setLoadingConversationId(conversation?._id || 'new'))
 
     try {
         if (!conversation) {
@@ -91,7 +94,7 @@ function ChatInput() {
                 dispatch(addConversation(conv))
                 conversation = conv
             } else {
-                dispatch(setIsLoading(false))
+                dispatch(setLoadingConversationId(null))
                 return
             }
         }
@@ -121,7 +124,7 @@ function ChatInput() {
         if (fileRef.current) fileRef.current.value = ""
 
         const data = await sendMessage(formData)
-        dispatch(setIsLoading(false))
+        dispatch(setLoadingConversationId(null))
         if (data?.error) {
             toast.error(data.message || "Failed to send message. Please try again.")
             return
@@ -131,7 +134,7 @@ function ChatInput() {
         dispatch(addMessage({ role: "assistant", content: data?.answer, images: data?.images }))
     } catch (error) {
         console.error("Failed to send message:", error)
-        dispatch(setIsLoading(false))
+        dispatch(setLoadingConversationId(null))
         toast.error("Failed to send message. Please try again.")
     }
   }
@@ -155,7 +158,7 @@ function ChatInput() {
     return `${Math.round(kb)} KB`
   }
 
-  const isSendDisabled = (!value.trim() && !selectedFile) || isLoading
+  const isSendDisabled = (!value.trim() && !selectedFile) || isThisConversationLoading
 
   return (
     <div className='w-full px-4 md:px-6 py-4 border-t border-slate-800/50 bg-gradient-to-t from-[#08090d] to-transparent'>
@@ -217,7 +220,7 @@ function ChatInput() {
             placeholder='Ask Anything...'
             onChange={(e) => setValue(e.target.value)}
             value={value}
-            disabled={isLoading}
+            disabled={isThisConversationLoading}
             className="flex-1 bg-transparent outline-none resize-none text-[14px] text-slate-200 placeholder:text-slate-600 leading-relaxed [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-50"
             rows={2}
             onKeyDown={(e) => {

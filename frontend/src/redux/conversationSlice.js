@@ -3,7 +3,8 @@ import { clearUser } from "./userSlice.js";
 
 const initialState={
   conversations:[],
-  selectedConversation:null
+  selectedConversation:null,
+  loadingConversationId:null
 }
 
 const conversationSlice=createSlice({
@@ -20,7 +21,7 @@ const conversationSlice=createSlice({
         state.selectedConversation=action.payload
        },
 
-      setConvTitle:(state,action)=>{
+setConvTitle:(state,action)=>{
            const {title,conversationId}=action.payload
            state.conversations=state.conversations.map((conv)=>(
             conv._id==conversationId?(
@@ -31,7 +32,10 @@ const conversationSlice=createSlice({
            if(state.selectedConversation?._id==conversationId){
                state.selectedConversation={...state.selectedConversation,title}
            }
-      }
+       },
+       setLoadingConversationId:(state,action)=>{
+         state.loadingConversationId=action.payload
+       }
 
     },
     // Logout has to wipe this too, or the next user to sign in on this tab
@@ -42,6 +46,6 @@ const conversationSlice=createSlice({
 
 })
 
-export const {setConversations,addConversation,setSelectedConversation,setConvTitle}=conversationSlice.actions 
+export const {setConversations,addConversation,setSelectedConversation,setConvTitle,setLoadingConversationId}=conversationSlice.actions 
 export default conversationSlice.reducer
 

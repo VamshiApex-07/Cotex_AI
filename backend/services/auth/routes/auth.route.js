@@ -6,10 +6,6 @@ import { login, logOut } from "../controllers/auth.controller.js"
 const router = express.Router()
 
 router.post("/login", login)
-router.get("/logout", logOut)
-// GET /logout is CSRF-triggerable under SameSite=Lax (a top-level navigation
-// sends the cookie), so the worst case is a forced sign-out. POST is registered
-// alongside it for the frontend to migrate onto; drop the GET once it has.
 router.post("/logout", logOut)
 
 export default router

@@ -10,9 +10,6 @@ const router=express.Router()
 router.use(requireUser)
 
 router.post("/create-conversation",createConversation)
-// TODO: drop this GET alias once frontend/src/features/createConversation.js
-// switches to api.post — a state-mutating GET is CSRF-triggerable under SameSite=Lax.
-router.get("/create-conversation",createConversation)
 router.get("/get-conversations",getConversations)
 router.post("/update-conversation",updateConversation)
 router.post("/save-message",saveMessage)

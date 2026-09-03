@@ -11,7 +11,5 @@ const router = express.Router()
 router.post("/update-plan", updateUserPayment)
 router.post("/reserve-credits", reserveCredits)
 router.post("/refund-credits", refundCredits)
-// Alias for callers that have not moved to /reserve-credits yet.
-router.post("/deduct-credits", reserveCredits)
 
 export default router
