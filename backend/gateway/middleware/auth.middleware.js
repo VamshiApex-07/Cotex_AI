@@ -15,21 +15,28 @@ const unauthorized = (res, code) =>
 const protect = async (req, res, next) => {
     const sessionId = req.cookies?.session
 
+    console.log("[protect] cookie:", sessionId)
+
     if (typeof sessionId !== "string" || !UUID_V4.test(sessionId)) {
+        console.log("[protect] ❌ invalid/missing UUID")
         return unauthorized(res, "unauthorized")
     }
 
+    const key = `session-${sessionId}`
+    console.log("[protect] 🔍 Redis GET:", key)
+
     let raw
     try {
-        raw = await redis.get(`session-${sessionId}`)
+        raw = await redis.get(key)
     } catch (error) {
-        // Redis being unreachable is not the caller's fault and must not read
-        // as "bad credentials" — 503 so clients back off instead of logging out.
         console.error("[gateway] session lookup failed:", error?.message)
         return res.status(503).json({ code: "session_unavailable", message: "Service temporarily unavailable." })
     }
 
+    console.log("[protect] Redis result:", !!raw)
+
     if (!raw) {
+        console.log("[protect] ❌ session not found")
         return unauthorized(res, "session_expired")
     }
 
@@ -39,18 +46,24 @@ const protect = async (req, res, next) => {
     } catch {
         console.error("[gateway] discarding unparseable session blob")
         await redis.del(`session-${sessionId}`).catch(() => {})
+        console.log("[protect] ❌ JSON parse failed")
         return unauthorized(res, "session_expired")
     }
 
-    // Downstream services derive the acting user entirely from x-user-id, so a
-    // session missing a userId must not be allowed to proxy — Mongoose would
-    // strip the resulting undefined out of query filters and the request would
-    // run unscoped.
+    console.log("[protect] session:", {
+        userId: session?.userId,
+        validUserId:
+            typeof session?.userId === "string" &&
+            /^[0-9a-fA-F]{24}$/.test(session.userId),
+    })
+
     if (!session || typeof session.userId !== "string" || !/^[0-9a-fA-F]{24}$/.test(session.userId)) {
+        console.log("[protect] ❌ invalid session userId")
         return unauthorized(res, "session_expired")
     }
 
     req.user = session
+    console.log("[protect] ✅ authenticated")
     return next()
 }
 
