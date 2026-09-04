@@ -3,7 +3,7 @@ import Nav from './Nav'
 import ChatInput from './ChatInput'
 import { useDispatch, useSelector } from 'react-redux'
 import getMessages from '../features/getMessages'
-import { setArtifacts, setMessages } from '../redux/messageSlice'
+import { setArtifacts, setMessages, setHasMoreMessages } from '../redux/messageSlice'
 import MessageList from './MessageList'
 
 function ChatArea() {
@@ -20,13 +20,14 @@ function ChatArea() {
       if(conversationTitle==="New Chat"){
         dispatch(setMessages([]))
         dispatch(setArtifacts([]))
+        dispatch(setHasMoreMessages(false))
         return;
       }
-      const data=await getMessages(conversationId, abortController.signal)
-      if(!abortController.signal.aborted && Array.isArray(data)){
-        console.log(data)
-        dispatch(setMessages(data))
-        const allArtifacts = data
+      const data=await getMessages({ id: conversationId, signal: abortController.signal })
+      if(!abortController.signal.aborted && data?.messages){
+        dispatch(setMessages(data.messages))
+        dispatch(setHasMoreMessages(data.hasMore))
+        const allArtifacts = data.messages
             .filter(msg => msg.artifacts?.length > 0)
             .flatMap(msg => msg.artifacts)
         dispatch(setArtifacts(allArtifacts))

@@ -11,9 +11,10 @@ const OBJECT_ID=/^[0-9a-fA-F]{24}$/
 const isObjectId=(value)=>typeof value==="string" && OBJECT_ID.test(value) && mongoose.isValidObjectId(value)
 
 const TITLE_MAX=200
-const MESSAGE_LIMIT_DEFAULT=50
-const MESSAGE_LIMIT_MAX=100
-const CONVERSATION_LIMIT=200
+const MESSAGE_LIMIT_DEFAULT=15
+const MESSAGE_LIMIT_MAX=50
+const CONVERSATION_LIMIT_DEFAULT=15
+const CONVERSATION_LIMIT_MAX=50
 
 const parseLimit=(raw)=>{
     if (typeof raw!=="string") return MESSAGE_LIMIT_DEFAULT
@@ -39,11 +40,34 @@ export const createConversation=async (req,res) => {
 
 export const getConversations=async (req,res) => {
   try {
-    const conversations=await Conversation.find({
-        userId:req.userId
-    }).sort({updatedAt:-1}).limit(CONVERSATION_LIMIT).lean()
+    const page=Math.max(1,parseInt(req.query.page,10)||1)
+    const limit=Math.min(Math.max(1,parseInt(req.query.limit,10)||CONVERSATION_LIMIT_DEFAULT),CONVERSATION_LIMIT_MAX)
+    const skip=(page-1)*limit
+    const search=typeof req.query.search==="string"?req.query.search.trim():''
 
-    return res.status(200).json(conversations)
+    const baseQuery={ userId: req.userId }
+    if(search){
+        baseQuery.$text={ $search: search }
+    }
+
+    const [conversations,total]=await Promise.all([
+        Conversation.find(baseQuery)
+            .sort({updatedAt:-1})
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+        Conversation.countDocuments(baseQuery)
+    ])
+
+    const hasMore=skip+conversations.length<total
+
+    return res.status(200).json({
+        conversations,
+        hasMore,
+        total,
+        page,
+        limit
+    })
   } catch (error) {
      console.error("[chat] get conversations failed:",error)
      return fail(res,500,"get_conversations_failed","Could not load conversations")
@@ -130,19 +154,62 @@ export const getMessages=async (req,res) => {
             return fail(res,404,"conversation_not_found","Conversation not found")
         }
 
-        // Filtered on conversationId alone (not userId) because the parent
-        // ownership check above already authorised it and messages written before
-        // Message.userId existed have no value to match against.
-        const messages=await Message.find({ conversationId })
-            .sort({createdAt:-1})
-            .limit(parseLimit(req.query.limit))
+        const limit=Math.min(parseLimit(req.query.limit),MESSAGE_LIMIT_MAX)
+        const { before } = req.query
+
+        let query={ conversationId }
+        if (before) {
+            try {
+                const cursor=JSON.parse(Buffer.from(before,"base64").toString("utf8"))
+                if (cursor && typeof cursor.createdAt === "string" && typeof cursor._id === "string") {
+                    query.$or=[
+                        { createdAt: { $lt: new Date(cursor.createdAt) } },
+                        { createdAt: new Date(cursor.createdAt), _id: { $lt: cursor._id } }
+                    ]
+                }
+            } catch {
+                return fail(res,400,"invalid_cursor","Invalid pagination cursor")
+            }
+        }
+
+        const messages=await Message.find(query)
+            .sort({createdAt:-1,_id:-1})
+            .limit(limit+1)
             .lean()
 
-        // Newest N were taken for the limit; the client renders top-to-bottom, so
-        // hand it back chronologically.
-        return res.status(200).json(messages.reverse())
+        const hasMore=messages.length>limit
+        if (hasMore) {
+            messages.pop()
+        }
+
+        return res.status(200).json({
+            messages: messages.reverse(),
+            hasMore
+        })
     } catch (error) {
         console.error("[chat] get messages failed:",error)
         return fail(res,500,"get_messages_failed","Could not load messages")
+    }
+}
+
+export const deleteConversation=async (req,res) => {
+    try {
+        const { id } = req.body
+        if (!isObjectId(id)) {
+            return fail(res,400,"invalid_conversation_id","Invalid conversation id")
+        }
+
+        const conversation=await Conversation.findOne({ _id: id, userId: req.userId }).select("_id").lean()
+        if (!conversation) {
+            return fail(res,404,"conversation_not_found","Conversation not found")
+        }
+
+        await Message.deleteMany({ conversationId: id })
+        await Conversation.deleteOne({ _id: id, userId: req.userId })
+
+        return res.status(200).json({ success: true })
+    } catch (error) {
+        console.error("[chat] delete conversation failed:",error)
+        return fail(res,500,"delete_conversation_failed","Could not delete conversation")
     }
 }

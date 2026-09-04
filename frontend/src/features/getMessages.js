@@ -1,8 +1,13 @@
 import api from "../../utils/axios.js"
 
-async function getMessages(id, signal){
-    try{
-        const {data}=await api.get(`/api/chat/get-messages/${id}`, { signal })
+async function getMessages({ id, before, limit = 15, signal }) {
+    try {
+        const params = new URLSearchParams()
+        if (before) params.set("before", before)
+        if (limit !== 50) params.set("limit", limit)
+        const queryString = params.toString()
+        const url = `/api/chat/get-messages/${id}${queryString ? `?${queryString}` : ""}`
+        const { data } = await api.get(url, { signal })
         return data
     }
     catch(error){
@@ -10,7 +15,7 @@ async function getMessages(id, signal){
             return null
         }
         console.log(error)
-        return []
+        return null
     }
 }
 

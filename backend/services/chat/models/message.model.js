@@ -50,6 +50,8 @@ const messageSchema=new mongoose.Schema({
 
 // Exact access pattern of getMessages (filter conversationId, sort createdAt desc).
 messageSchema.index({conversationId:1,createdAt:-1})
+// Cursor-based pagination with tiebreaker on _id for deterministic ordering.
+messageSchema.index({conversationId:1,createdAt:-1,_id:-1})
 
 const Message=mongoose.model("Message",messageSchema)
 export default Message

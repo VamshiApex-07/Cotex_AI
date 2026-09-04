@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
-import { Coins, Loader2, LogOut, Menu, MessageSquare, PanelLeftIcon, PanelRight, PenSquare, Plus, User, X } from "lucide-react"
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Coins, Loader2, LogOut, Menu, MessageSquare, PanelLeftIcon, PanelRight, PenSquare, Plus, Search, Trash, User, X } from "lucide-react"
 import { useDispatch, useSelector } from 'react-redux'
 import { getConversations } from '../features/getConversations'
 import { createConversation } from '../features/createConversation'
+import { deleteConversation } from '../features/deleteConversation'
 import logOut from '../features/logOut'
-import { addConversation, setConversations, setSelectedConversation } from '../redux/conversationSlice'
+import { addConversation, appendConversations, removeConversation, setConversations, setSelectedConversation, setLoadingConversations } from '../redux/conversationSlice'
 import { clearUser } from '../redux/userSlice'
 import BillingDrawer from './BillingDrawer.jsx'
 import BrandMark from './BrandMark.jsx'
@@ -16,25 +17,71 @@ function SideBar() {
     const [mobileOpen, setMobileOpen] = useState(false)
     const [showBilling, setShowBilling] = useState(false)
     const [loggingOut, setLoggingOut] = useState(false)
+    const [deletingConversationId, setDeletingConversationId] = useState(null)
+    const [searchInput, setSearchInput] = useState("")
     const toast = useToast()
 
     const dispatch = useDispatch()
-    const { conversations, selectedConversation } = useSelector(state => state.conversation)
+    const { conversations, selectedConversation, hasMore, currentPage, searchQuery, loadingConversations } = useSelector(state => state.conversation)
     const { userData } = useSelector(state => state.user)
 
-    useEffect(() => {
-        const abortController=new AbortController()
-        const getConv = async () => {
-            const data = await getConversations(abortController.signal)
-            if(!abortController.signal.aborted){
+    const searchTimeoutRef = useRef(null)
+    const abortControllerRef = useRef(null)
+    const loadMoreRef = useRef(false)
+
+    const fetchConversations = useCallback(async ({ page = 1, search = "", append = false } = {}) => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort()
+        }
+        abortControllerRef.current = new AbortController()
+        if (!append) {
+            dispatch(setLoadingConversations(true))
+        }
+        const data = await getConversations({
+            page,
+            limit: 15,
+            search,
+            signal: abortControllerRef.current.signal
+        })
+        if (!abortControllerRef.current.signal.aborted && data) {
+            if (append) {
+                dispatch(appendConversations(data))
+            } else {
                 dispatch(setConversations(data))
             }
         }
-        getConv()
-        return ()=>{
-            abortController.abort()
+        dispatch(setLoadingConversations(false))
+        return data
+    }, [dispatch])
+
+    useEffect(() => {
+        if (userData?.userId) {
+            fetchConversations({ page: 1, search: "" })
         }
-    }, [userData?.userId, dispatch])
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort()
+            }
+        }
+    }, [userData?.userId, fetchConversations])
+
+    const handleSearchChange = (e) => {
+        const value = e.target.value
+        setSearchInput(value)
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current)
+        }
+        searchTimeoutRef.current = setTimeout(() => {
+            fetchConversations({ page: 1, search: value.trim() })
+        }, 250)
+    }
+
+    const handleLoadMore = async () => {
+        if (loadMoreRef.current || !hasMore || loadingConversations) return
+        loadMoreRef.current = true
+        await fetchConversations({ page: currentPage + 1, search: searchQuery, append: true })
+        loadMoreRef.current = false
+    }
 
     const handleCreateConversation = async () => {
         const data = await createConversation()
@@ -54,6 +101,22 @@ function SideBar() {
         setMobileOpen(false)
     }
 
+    const handleDeleteConversation = async (e, conv) => {
+        e.stopPropagation()
+        if (!window.confirm("Are you sure you want to delete this conversation? This action cannot be undone.")) {
+            return
+        }
+        setDeletingConversationId(conv._id)
+        const data = await deleteConversation(conv._id)
+        setDeletingConversationId(null)
+        if (data?.success) {
+            dispatch(removeConversation(conv._id))
+            toast.success("Conversation deleted")
+        } else {
+            toast.error("Failed to delete conversation")
+        }
+    }
+
     const handleLogout = async () => {
         if (loggingOut) return
         setLoggingOut(true)
@@ -61,6 +124,30 @@ function SideBar() {
         dispatch(clearUser())
         toast.success("Logged out successfully")
     }
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            const target = e.target
+            const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable
+            if (isInput) return
+            if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+                e.preventDefault()
+                handleCreateConversation()
+            }
+            if ((e.metaKey || e.ctrlKey) && (e.key === "Delete" || e.key === "Backspace")) {
+                if (selectedConversation) {
+                    e.preventDefault()
+                    handleDeleteConversation(e, selectedConversation)
+                }
+            }
+            if (e.key === "Escape" && mobileOpen) {
+                e.preventDefault()
+                setMobileOpen(false)
+            }
+        }
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+    }, [selectedConversation, mobileOpen])
 
     return (
         <>
@@ -190,39 +277,83 @@ function SideBar() {
                             </button>
                         </div>
 
+                        <div className='px-4 pt-4 pb-2'>
+                            <div className="relative">
+                                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                                <input
+                                    type="text"
+                                    placeholder="Search conversations..."
+                                    value={searchInput}
+                                    onChange={handleSearchChange}
+                                    className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-9 pr-3 py-2 text-[13px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-violet-500/50"
+                                />
+                            </div>
+                        </div>
+
                         <div className='px-4 py-2'>
                             <span className='text-[10px] font-semibold uppercase tracking-widest text-slate-600'>
-                                {conversations?.length === 0 ? "No conversations" : "Recent"}
+                                {loadingConversations ? "Loading..." : conversations?.length === 0 ? "No conversations" : "Recent"}
                             </span>
                         </div>
 
                         <div className='flex-1 overflow-y-auto px-3 pb-3 space-y-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'>
-                            {conversations?.map((conv, i) => {
-                                const isActive = selectedConversation?._id === conv?._id
-                                return (
-                                    <button
-                                        key={conv?._id || i}
-                                        onClick={() => handleSelectConversation(conv)}
-                                        className={`w-full flex items-center gap-3 cursor-pointer rounded-xl px-3 py-2.5 transition-all text-left
-                                            ${isActive
-                                                ? 'bg-gradient-to-r from-violet-600/15 to-indigo-600/15 border border-violet-500/30'
-                                                : 'hover:bg-slate-800/50 border border-transparent'
-                                            }`}
-                                    >
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors
-                                            ${isActive
-                                                ? 'bg-violet-600/30 text-violet-400'
-                                                : 'bg-slate-800/80 text-slate-500'
-                                            }`}>
-                                            <MessageSquare size={14} />
+                            {loadingConversations && conversations.length === 0 ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 size={16} className="animate-spin text-slate-500" />
+                                </div>
+                            ) : (
+                                conversations?.map((conv, i) => {
+                                    const isActive = selectedConversation?._id === conv?._id
+                                    return (
+                                        <div
+                                            key={conv?._id || i}
+                                            onClick={() => handleSelectConversation(conv)}
+                                            className={`w-full flex items-center gap-3 cursor-pointer rounded-xl px-3 py-2.5 transition-all text-left group
+                                                ${isActive
+                                                    ? 'bg-gradient-to-r from-violet-600/15 to-indigo-600/15 border border-violet-500/30'
+                                                    : 'hover:bg-slate-800/50 border border-transparent'
+                                                }`}
+                                        >
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors
+                                                ${isActive
+                                                    ? 'bg-violet-600/30 text-violet-400'
+                                                    : 'bg-slate-800/80 text-slate-500'
+                                                }`}>
+                                                <MessageSquare size={14} />
+                                            </div>
+                                            <span className={`text-[13px] truncate transition-colors flex-1
+                                                ${isActive ? 'text-white font-medium' : 'text-slate-400'}`}>
+                                                {conv?.title || "New Chat"}
+                                            </span>
+                                            <button
+                                                onClick={(e) => handleDeleteConversation(e, conv)}
+                                                disabled={deletingConversationId === conv._id}
+                                                className='opacity-0 group-hover:opacity-100 disabled:opacity-50 flex items-center justify-center w-7 h-7 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer disabled:cursor-not-allowed'
+                                                title="Delete conversation"
+                                            >
+                                                {deletingConversationId === conv._id ? (
+                                                    <Loader2 size={13} className='animate-spin' />
+                                                ) : (
+                                                    <Trash size={13} />
+                                                )}
+                                            </button>
                                         </div>
-                                        <span className={`text-[13px] truncate transition-colors
-                                            ${isActive ? 'text-white font-medium' : 'text-slate-400'}`}>
-                                            {conv?.title || "New Chat"}
-                                        </span>
-                                    </button>
-                                )
-                            })}
+                                    )
+                                })
+                            )}
+                            {hasMore && (
+                                <button
+                                    onClick={handleLoadMore}
+                                    disabled={loadingConversations}
+                                    className="w-full flex items-center justify-center gap-1.5 text-[12px] text-slate-400 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/30 hover:border-slate-600/50 py-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                    {loadingConversations ? (
+                                        <Loader2 size={12} className="animate-spin" />
+                                    ) : (
+                                        "Load more"
+                                    )}
+                                </button>
+                            )}
                         </div>
 
                         <div className='mx-3 h-px bg-slate-800/50' />

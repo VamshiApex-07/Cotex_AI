@@ -1,6 +1,6 @@
 import express from "express"
 import { requireUser } from "../../../shared/auth/internalAuth.js"
-import { createConversation, getConversations, getMessages, saveMessage, updateConversation } from "../controllers/chat.controller.js"
+import { createConversation, deleteConversation, getConversations, getMessages, saveMessage, updateConversation } from "../controllers/chat.controller.js"
 
 const router=express.Router()
 
@@ -14,4 +14,5 @@ router.get("/get-conversations",getConversations)
 router.post("/update-conversation",updateConversation)
 router.post("/save-message",saveMessage)
 router.get("/get-messages/:conversationId",getMessages)
+router.post("/delete-conversation",deleteConversation)
 export default router

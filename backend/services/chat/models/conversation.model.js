@@ -18,6 +18,10 @@ const conversationSchema = new mongoose.Schema({
 // Exact access pattern of getConversations. A prefix of this index also serves
 // plain userId lookups (the ownership checks), so userId gets no second index.
 conversationSchema.index({userId:1,updatedAt:-1})
+// Text index for conversation title search.
+conversationSchema.index({ title: "text" })
+// Compound index for user+search+sort
+conversationSchema.index({userId:1,title:"text",updatedAt:-1})
 
 const Conversation= mongoose.model("conversation",conversationSchema)
 export default Conversation

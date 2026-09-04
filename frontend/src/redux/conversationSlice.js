@@ -4,7 +4,12 @@ import { clearUser } from "./userSlice.js";
 const initialState={
   conversations:[],
   selectedConversation:null,
-  loadingConversationId:null
+  loadingConversationId:null,
+  hasMore:true,
+  totalConversations:0,
+  currentPage:1,
+  searchQuery:"",
+  loadingConversations:false
 }
 
 const conversationSlice=createSlice({
@@ -12,7 +17,18 @@ const conversationSlice=createSlice({
     initialState,
     reducers:{
        setConversations:(state,action)=>{
-        state.conversations=action.payload
+        state.conversations=action.payload.conversations||[]
+        state.hasMore=action.payload.hasMore??true
+        state.totalConversations=action.payload.total??0
+        state.currentPage=action.payload.page??1
+       },
+       appendConversations:(state,action)=>{
+        const existingIds=new Set(state.conversations.map(c=>c._id))
+        const newConversations=(action.payload.conversations||[]).filter(c=>!existingIds.has(c._id))
+        state.conversations.push(...newConversations)
+        state.hasMore=action.payload.hasMore??true
+        state.totalConversations=action.payload.total??state.totalConversations
+        state.currentPage=action.payload.page??state.currentPage
        },
        addConversation:(state,action)=>{
         state.conversations.unshift(action.payload)
@@ -27,14 +43,33 @@ setConvTitle:(state,action)=>{
             conv._id==conversationId?(
              { ...conv,title}
             ):conv
-           )) 
+           ))
 
            if(state.selectedConversation?._id==conversationId){
                state.selectedConversation={...state.selectedConversation,title}
            }
-       },
+        },
+        removeConversation:(state,action)=>{
+            const conversationId=action.payload
+            state.conversations=state.conversations.filter((conv)=>conv._id!==conversationId)
+            if(state.selectedConversation?._id===conversationId){
+                state.selectedConversation=null
+            }
+        },
        setLoadingConversationId:(state,action)=>{
          state.loadingConversationId=action.payload
+       },
+       setSearchQuery:(state,action)=>{
+         state.searchQuery=action.payload
+       },
+       resetConversations:(state)=>{
+         state.conversations=[]
+         state.hasMore=true
+         state.currentPage=1
+         state.totalConversations=0
+       },
+       setLoadingConversations:(state,action)=>{
+         state.loadingConversations=action.payload
        }
 
     },
@@ -46,6 +81,6 @@ setConvTitle:(state,action)=>{
 
 })
 
-export const {setConversations,addConversation,setSelectedConversation,setConvTitle,setLoadingConversationId}=conversationSlice.actions 
+export const {setConversations,appendConversations,addConversation,setSelectedConversation,setConvTitle,setLoadingConversationId,removeConversation,setSearchQuery,resetConversations,setLoadingConversations}=conversationSlice.actions
 export default conversationSlice.reducer
 

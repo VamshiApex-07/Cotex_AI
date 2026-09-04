@@ -4,7 +4,9 @@ import { clearUser } from "./userSlice.js";
 const initialState={
   messages:[],
   artifacts:[],
-  activeAgent:"auto"
+  activeAgent:"auto",
+  hasMoreMessages:true,
+  loadingOlderMessages:false
 }
 
 const messageSlice=createSlice({
@@ -17,12 +19,23 @@ const messageSlice=createSlice({
         addMessage:(state,action)=>{
         state.messages.push(action.payload)
        },
-       setArtifacts:(state,action)=>{
+       prependMessages:(state,action)=>{
+        const existingIds=new Set(state.messages.map(m=>m._id))
+        const newMessages=action.payload.filter(m=>!existingIds.has(m._id))
+        state.messages.unshift(...newMessages)
+       },
+        setArtifacts:(state,action)=>{
         state.artifacts=action.payload
        },
 
        setActiveAgent:(state,action)=>{
         state.activeAgent=action.payload
+       },
+       setHasMoreMessages:(state,action)=>{
+        state.hasMoreMessages=action.payload
+       },
+       setLoadingOlderMessages:(state,action)=>{
+        state.loadingOlderMessages=action.payload
        }
     },
     // Same reason as conversationSlice: a stale transcript must not survive
@@ -33,7 +46,7 @@ const messageSlice=createSlice({
 
 })
 
-export const {setMessages,addMessage,setArtifacts,setActiveAgent}=messageSlice.actions 
+export const {setMessages,addMessage,setArtifacts,setActiveAgent,prependMessages,setHasMoreMessages,setLoadingOlderMessages}=messageSlice.actions
 export default messageSlice.reducer
 
 
