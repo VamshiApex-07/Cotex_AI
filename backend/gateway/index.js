@@ -8,7 +8,6 @@ import protect from "./middleware/auth.middleware.js"
 import { getCurrentUser } from "./controllers/user.controller.js"
 import { proxyWithHeader } from "./utils/proxyWithHeader.js"
 import { assertInternalSecret } from "../shared/auth/internalAuth.js"
-
 const REQUIRED_ENV = [
     "PORT",
     "AUTH_SERVICE",

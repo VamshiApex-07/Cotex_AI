@@ -70,7 +70,6 @@ function SideBar() {
             >
                 <Menu size={16} />
             </button>
-
             {mobileOpen && (
                 <div
                     onClick={() => setMobileOpen(false)}

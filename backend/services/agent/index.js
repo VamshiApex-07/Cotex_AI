@@ -4,7 +4,6 @@ import express from "express"
 import connectDb from "./config/db.js"
 import router from "./routes/agent.route.js"
 import { assertInternalSecret, requireInternal, requireUser } from "../../shared/auth/internalAuth.js"
-
 // dotenv/config has to be the first import, not a dotenv.config() call further
 // down: ESM evaluates every import before any top-level statement, so anything
 // imported below here — shared/redis/redis.js in particular — had already read
