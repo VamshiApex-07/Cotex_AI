@@ -1,447 +1,578 @@
 # CortexAI
 
-<p align="center">
-  <img src="https://img.shields.io/badge/React-19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19">
-  <img src="https://img.shields.io/badge/LangGraph-Orchestrated-1C2D42?style=for-the-badge&logo=langchain&logoColor=3178C6" alt="LangGraph">
-  <img src="https://img.shields.io/badge/Multi--Agent-AI-7B1FA2?style=for-the-badge&logo=pypy&logoColor=white" alt="Multi-Agent AI">
-  <img src="https://img.shields.io/badge/PDF-RAG-D32F2F?style=for-the-badge&logo=adobeacrobatreader&logoColor=white" alt="PDF RAG">
-  <img src="https://img.shields.io/badge/Credit--Based-Billing-E65100?style=for-the-badge&logo=simpleanalytics&logoColor=white" alt="Credit System">
-</p>
-
-> An **AI-native productivity platform** powered by a LangGraph multi-agent orchestrator, PDF RAG pipeline, and a credit-based billing engine.
-
-**Chat · Research · Code · Documents · Slides · Images** — every request routed to a specialist agent.
-
----
-
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| 🤖 **8 Specialist Agents** | Chat, Search, Code, PDF, PPT, Vision, PDF RAG, Image Analyzer |
-| 🔄 **Smart Routing** | Auto-classifies requests to the optimal agent |
-| 📄 **PDF RAG Pipeline** | Upload PDFs, ask questions, get accurate answers |
-| 💳 **Credit-Based Billing** | Pay-as-you-go with atomic transaction safety |
-| 🔒 **Enterprise Security** | Session cookies, HMAC verification, path traversal protection |
-| 🧠 **Long Memory** | Conversation history persisted across sessions |
-| 🎨 **Rich Artifacts** | Markdown, code blocks, images, generated presentations |
-| 🔍 **Web Search** | Real-time results with Tavily integration |
-
----
-
-## Stack
-
-| Layer | Technology |
-|-------|------------|
-| **Frontend** | React 19 · Vite 8 · Redux Toolkit · Vanilla CSS |
-| **Orchestration** | LangGraph (`StateGraph`) · LangChain |
-| **Agents** | Groq (DeepSeek via Groq API) · Gemini 2.5 Flash · FLUX.1-schnell (HuggingFace) |
-| **Vector DB** | Qdrant · HuggingFace Embeddings (`BAAI/bge-small-en-v1.5`) |
-| **Databases** | MongoDB (Mongoose) · Redis (ioredis) |
-| **Auth** | Firebase Admin · Session cookies |
-| **Payments** | Razorpay (orders + HMAC verification) |
-| **File Storage** | AWS S3 |
-| **Search** | Tavily |
-
----
-
-## Quick Start
-
-```bash
-# Clone the repo
-git clone https://github.com/yourusername/cortexai.git
-cd cortexai
-
-# Start Redis
-docker compose -f backend/docker-compose.yml up -d redis
-
-# Start backend services
-cd backend/gateway && node index.js &
-cd backend/services/auth && node index.js &
-cd backend/services/chat && node index.js &
-cd backend/services/agent && node index.js &
-cd backend/services/billing && node index.js &
-
-# Start frontend
-cd frontend && npm install && npm run dev
-```
-
-Open `http://localhost:5173` → Sign in with Google.
-
----
+Production AI-native productivity platform with LangGraph multi-agent orchestration, adaptive PDF RAG pipeline, and credit-based billing.
 
 ## Architecture
 
 ```mermaid
-flowchart TB
-    subgraph Client["Client"]
-        SPA["Vite React SPA\n(port 5173)"]
-    end
+graph TB
+    Internet["Internet"]
+    Amplify["AWS Amplify<br/>Frontend Hosting"]
+    ALB["Application Load Balancer"]
+    Gateway["Gateway Service<br/>:8000"]
+    Auth["Auth Service<br/>:8001"]
+    Chat["Chat Service<br/>:8002"]
+    Agent["Agent Service<br/>:8003"]
+    Billing["Billing Service<br/>:8004"]
+    Redis["Redis<br/>:6379"]
+    MongoDB["MongoDB Atlas"]
+    Qdrant["Qdrant Cloud"]
+    S3["AWS S3"]
+    Tavily["Tavily Search"]
+    Groq["Groq API"]
+    Gemini["Google Gemini"]
+    HuggingFace["HuggingFace"]
+    Razorpay["Razorpay"]
 
-    subgraph Gateway["Gateway Layer"]
-        GW["Express Gateway\n(port 8000)"]
-    end
+    Internet --> Amplify
+    Amplify --> ALB
+    ALB --> Gateway
+    Gateway --> Auth
+    Gateway --> Chat
+    Gateway --> Agent
+    Gateway --> Billing
 
-    subgraph Services["Microservices"]
-        AUTH["Auth Service\n(port 8001)"]
-        CHAT["Chat Service\n(port 8002)"]
-        AGENT["Agent Service\n(port 8003)"]
-        BILLING["Billing Service\n(port 8004)"]
-    end
-
-    subgraph DataStores["Data Stores"]
-        MONGO[("MongoDB")]
-        REDIS[("Redis")]
-        QDRANT[("Qdrant")]
-        S3[("AWS S3")]
-    end
-
-    subgraph ExternalAPIs["External APIs"]
-        FIREBASE["Firebase"]
-        RAZORPAY["Razorpay"]
-        GROQ["Groq"]
-        GEMINI["Gemini"]
-        TAVILY["Tavily"]
-        HF["Hugging Face"]
-    end
-
-    SPA --> GW
-    GW --> AUTH
-    GW --> CHAT
-    GW --> AGENT
-    GW --> BILLING
-    GW <--> REDIS
-
-    AGENT --> CHAT
-    AGENT --> AUTH
-    AGENT --> QDRANT
-    AGENT --> S3
-
-    AUTH --> MONGO
-    CHAT --> MONGO
-    BILLING --> MONGO
-
-    AUTH --> FIREBASE
-    BILLING --> RAZORPAY
-
-    AGENT --> GROQ
-    AGENT --> GEMINI
-    AGENT --> TAVILY
-    AGENT --> HF
+    Auth --> MongoDB
+    Auth --> Redis
+    Chat --> MongoDB
+    Chat --> Redis
+    Agent --> MongoDB
+    Agent --> Redis
+    Agent --> Qdrant
+    Agent --> S3
+    Agent --> Tavily
+    Agent --> Groq
+    Agent --> Gemini
+    Agent --> HuggingFace
+    Billing --> MongoDB
+    Billing --> Auth
+    Billing --> Razorpay
 ```
 
----
+## Tech Stack
 
-## Agent System
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 19.2.8 · Vite 8.2.2 · Redux Toolkit 2.12.0 · Tailwind CSS 4.3.3 |
+| **Orchestration** | LangGraph (`StateGraph`) |
+| **Agents** | Groq (`openai/gpt-oss-120b`) · Gemini (`gemini-2.5-flash`) · HuggingFace |
+| **Vector DB** | Qdrant Cloud |
+| **Embeddings** | HuggingFace (`BAAI/bge-small-en-v1.5`) |
+| **Databases** | MongoDB Atlas · Redis 7.4 (ioredis) |
+| **Auth** | Firebase Admin · Session cookies |
+| **Payments** | Razorpay |
+| **File Storage** | AWS S3 (presigned URLs) |
+| **Search** | Tavily |
+| **CI/CD** | GitHub Actions · AWS ECS Fargate · ECR · AWS Amplify |
+| **CDN** | AWS Amplify |
 
-Eight specialist agents, orchestrated by a LangGraph `StateGraph`.
+## Backend Services
+
+| Service | Port | Responsibility | Dependencies |
+|---------|------|----------------|--------------|
+| **Gateway** | 8000 | Public API entry point, authentication, request proxying | Redis |
+| **Auth** | 8001 | Identity, sessions, credit ledger, Firebase validation | MongoDB, Redis |
+| **Chat** | 8002 | Conversation/messages persistence, cursor pagination | MongoDB, Redis |
+| **Agent** | 8003 | LangGraph orchestration, AI agents, PDF RAG | MongoDB, Redis, Qdrant, S3 |
+| **Billing** | 8004 | Razorpay payment integration | MongoDB, Auth service |
+
+### Gateway Routes
+
+| Route | Auth | Target | Purpose |
+|-------|------|--------|---------|
+| `POST /api/auth/login` | None | Auth | Firebase ID token verification, session cookie issuance |
+| `POST /api/auth/logout` | None | Auth | Clear session cookie and Redis keys |
+| `POST /api/chat/*` | Session | Chat | Proxied with `x-user-id` header |
+| `POST /api/agent/*` | Session | Agent | Proxied with `x-user-id` header |
+| `POST /api/billing/*` | Session | Billing | Proxied with `x-user-id` header |
+| `GET /api/me` | Session | - | Returns current user from session |
+
+### Internal Service Communication
 
 ```mermaid
-flowchart TD
-    START([START]) --> Router{router}
-
-    Router -->|User picked agent != 'auto'| DirectAgent[Selected Agent]
-    Router -->|PDF uploaded| pdfRag[pdfRag]
-    Router -->|Image uploaded| imageAnalyzer[imageAnalyzer]
-    Router -->|LLM Classification| Classified[Classified Agent]
-
-    DirectAgent --> Agents
-    Classified --> Agents
-
-    subgraph Agents["Agent Nodes"]
-        chat[chat]
-        search[search]
-        coding[coding]
-        pdf[pdf]
-        ppt[ppt]
-        vision[vision]
-    end
-
-    search --> chat
-    chat --> END([END])
-    coding --> END
-    pdf --> END
-    ppt --> END
-    vision --> END
-    pdfRag --> END
-    imageAnalyzer --> END
+graph LR
+    A["Agent Service"] -->|"POST /internal/reserve-credits<br/>x-internal-secret"| B["Auth Service"]
+    A -->|"POST /save-message<br/>x-internal-secret"| C["Chat Service"]
+    B -->|"x-internal-secret"| A
+    C -->|"x-internal-secret"| A
+    D["Billing Service"] -->|"POST /internal/update-plan<br/>x-internal-secret"| B
 ```
 
-### Agents
+Services communicate via HTTP with `x-internal-secret` header validation (`requireInternal` middleware).
 
-| Agent | Model | Rate Limit | Input | Output |
-|-------|-------|-----------|-------|--------|
-| **Chat** | DeepSeek via Groq | 20 req/min | Text | Markdown response |
-| **Search** | DeepSeek via Groq + Tavily | 5 req/min | Text | Web results + images + chat synthesis |
-| **Coding** | Gemini 2.5 Flash | 5 req/min | Text | Markdown + project artifacts |
-| **PDF** | Gemini 2.5 Flash | 5 req/min | Text | `.pdf` via PDFKit |
-| **PPT** | Gemini 2.5 Flash | 5 req/min | Text | `.pptx` via PptxGenJS |
-| **Vision** | FLUX.1-schnell (HuggingFace) | 5 req/min | Text prompt | Generated image → S3 presigned URL |
-| **PDF RAG** | Gemini 2.5 Flash + Qdrant | — | Uploaded PDF + question | Answer from document |
-| **Image Analyzer** | Gemini 2.5 Flash | — | Uploaded image | Text analysis / OCR |
+## LangGraph Agent Architecture
 
----
+### State Schema
 
-## Credit System
+| Field | Type | Purpose |
+|-------|------|---------|
+| `prompt` | string | User input |
+| `aiResponse` | string | Final response |
+| `agent` | string | Selected agent type |
+| `conversationId` | string | Session identifier |
+| `searchResults` | array | Tavily results |
+| `images` | array | Search result images |
+| `artifacts` | array | Generated files |
+| `userId` | string | User identifier |
+| `file` | object | Uploaded file (PDF/image) |
+| `creditsPreReserved` | boolean | Flag for search->chat flow |
+| `preReservedAgent` | string | Pre-reserved agent type |
+| `preReservationId` | string | Reservation for refund tracking |
+| `searchFailed` | boolean | Search failure flag |
 
-Credits are reserved **before** any provider call — a user at zero cannot get free work done.
+### Graph Structure
 
 ```mermaid
-flowchart TD
-    A[Agent Request] --> B[reserveCredits]
-    B --> C{credits >= cost?}
-    C -- No --> D[402 Insufficient Credits]
-    C -- Yes --> E[MongoDB: credits -= cost]
-    E --> F[Provider API Call]
-    F --> G{Success?}
-    G -- Yes --> END([END])
-    G -- No --> H[refundCredits]
-    H --> E2[credits += cost]
-    E2 --> END
+graph TB
+    START(["__start__"]) --> ROUTER["router"]
+    ROUTER -->|"state.agent"| SELECTED{Selected Agent}
+    ROUTER -->|"file: pdf"| PDFRAG["pdfRag"]
+    ROUTER -->|"file: image"| IMAGEANALYZER["imageAnalyzer"]
+    ROUTER -->|"auto routing"| CLASSIFIED["LLM Classification"]
+
+    SELECTED -->|"chat"| CHAT["chat"]
+    SELECTED -->|"search"| SEARCH["search"]
+    SELECTED -->|"coding"| CODING["coding"]
+    SELECTED -->|"pdf"| PDF["pdf"]
+    SELECTED -->|"ppt"| PPT["ppt"]
+    SELECTED -->|"vision"| VISION["vision"]
+
+    CLASSIFIED --> CHAT
+    CLASSIFIED --> CODING
+    CLASSIFIED --> PDF
+    CLASSIFIED --> PPT
+    CLASSIFIED --> VISION
+
+    SEARCH --> CHAT
+    CHAT --> END(["__end__"])
+    CODING --> END
+    PDF --> END
+    PPT --> END
+    VISION --> END
+    PDFRAG --> END
+    IMAGEANALYZER --> END
 ```
 
-- **Atomic debit**: MongoDB `findOneAndUpdate` with `credits >= cost` filter — no negative balance possible.
-- **Exactly-once refund**: Reservation ID (UUID v4, required) stored in Redis with 15-min TTL; auth claims and deletes it before crediting — rejected without a valid UUID to prevent unbacked credit minting.
-- **Search→Chat credit safety**: Search pre-reserves credits once; Chat agent skips re-deduction when `creditsPreReserved` flag is set in LangGraph state. If Chat generation fails, the upstream search reservation is refunded.
-- **Price table** (`shared/config/agentCosts.js`): Single source of truth shared by billing and auth.
+### Agent Routing Logic
 
----
+1. If `state.agent` is explicitly set (not "auto"), use that agent
+2. If file attached:
+   - `application/pdf` -> `pdfRag`
+   - `image/*` -> `imageAnalyzer`
+3. Otherwise, LLM-based intent classification via Groq router
 
-## PDF RAG Pipeline
+### Agent Model Assignment
 
-```mermaid
-flowchart TD
-    A[Upload PDF] --> B[Extract Text\nPDFParse]
-    B --> C{Extracted Text\nVery Short?}
-    
-    C -- Yes / Scanned --> D[Gemini Vision OCR\nMax 10 pages]
-    C -- No / Digital --> E
-    
-    D --> E[Split into Chunks\nOr 1 chunk if small]
-    
-    E --> F[Generate Embeddings\nBAAI/bge-small-en-v1.5]
-    F --> G[Store Vectors\nQdrant Collection]
-    
-    G --> H{Is Question\na Summary?}
-    H -- Yes --> I[Use Large Text Slice]
-    H -- No --> J[Similarity Search\nRetrieve Top 10]
-    
-    I --> K[Gemini Answer Generation\nContext Only]
-    J --> K
-    
-    K --> L[Return Answer & Delete Temp File]
-```
+| Agent | Provider | Model |
+|-------|----------|-------|
+| chat | Groq | `openai/gpt-oss-120b` |
+| search | Groq | `openai/gpt-oss-120b` |
+| coding | Gemini | `gemini-2.5-flash` |
+| pdf | Groq (default) | - |
+| ppt | Groq (default) | - |
+| vision | HuggingFace | `FLUX.1-schnell` |
+| pdfRag | Gemini | `gemini-2.5-flash` |
+| imageAnalyzer | Gemini | `gemini-2.5-flash` |
+| vision-ocr | Gemini | `gemini-2.5-flash` |
 
----
+**Note:** OpenRouter is installed (`@langchain/openrouter`) but not actively used. No automatic provider fallback exists.
 
-## Payment Flow
+### Credit Reservation Flow
 
 ```mermaid
 sequenceDiagram
-    participant C as Client
-    participant G as Gateway
-    participant B as Billing Service
-    participant A as Auth Service
-    participant R as Razorpay
+    participant Client
+    participant Gateway
+    participant Agent
+    participant Auth
+    participant MongoDB
 
-    C->>G: POST /api/billing/create
-    G->>B: proxy with x-user-id
-    B->>R: razorpay.orders.create()
-    R-->>B: { order.id }
-    B-->>G: { order }
-    G-->>C: { order }
+    Client->>Gateway: POST /api/agent/chat
+    Gateway->>Agent: proxy with x-user-id
+    Agent->>Auth: reserveCredits(userId, agentType)
+    Auth->>MongoDB: atomic decrement (credits >= cost)
+    MongoDB-->>Auth: updated balance
+    Auth-->>Agent: { success, reservationId }
 
-    C->>R: Razorpay Checkout (popup)
-    C->>G: POST /api/billing/verify
-    G->>B: proxy
-    B->>B: HMAC signature check
-    B->>R: razorpay.payments.fetch(id)
-    R-->>B: { captured, amount }
-    B->>A: POST /internal/update-plan
-    A-->>B: { success }
-    B-->>G: { verified }
-    G-->>C: { verified }
+    alt Success
+        Agent->>Auth: refundCredits(userId, reservationId)
+        Auth->>MongoDB: atomic increment
+    else Failure
+        Agent->>Auth: refundCredits(userId, reservationId)
+        Auth->>MongoDB: atomic increment
+    end
+
+    Agent-->>Gateway: { answer, images, artifacts }
+    Gateway-->>Client: response
 ```
 
----
+## Adaptive PDF RAG Pipeline
 
-## Project Structure
+```mermaid
+graph TD
+    UPLOAD["Upload PDF<br/>max 20MB, UUID filename"]
+    EXTRACT["PDFParse text extraction"]
+    CHECK_TEXT{Text length<br/>< 150 chars?}
+    VISION_OCR["Gemini Vision OCR<br/>up to 10 pages @ 2x scale"]
+    CHECK_SIZE{Text length<br/>< 2500 chars?}
+    SINGLE_CHUNK["Single chunk<br/>preserve tables"]
+    CHUNKS["RecursiveCharacterTextSplitter<br/>800 char chunks, 100 overlap"]
+    EMBEDDINGS["Generate Embeddings<br/>BAAI/bge-small-en-v1.5"]
+    QDRANT["Store in Qdrant<br/>collection: pdf-{timestamp}"]
+    CHECK_SUMMARY{Summary<br/>request?}
+    SLICE["First 40k chars"]
+    RETRIEVE["similaritySearch<br/>top 10 chunks"]
+    ANSWER["Gemini 2.5 Flash<br/>answer generation"]
+    CLEANUP["Delete Qdrant collection<br/>Delete temp file"]
+    RESPONSE["Return answer"]
+
+    UPLOAD --> EXTRACT
+    EXTRACT --> CHECK_TEXT
+    CHECK_TEXT -->|"Yes / Scanned"| VISION_OCR
+    CHECK_TEXT -->|"No / Digital"| CHECK_SIZE
+    VISION_OCR --> CHECK_SIZE
+    CHECK_SIZE -->|"Yes"| SINGLE_CHUNK
+    CHECK_SIZE -->|"No"| CHUNKS
+    SINGLE_CHUNK --> EMBEDDINGS
+    CHUNKS --> EMBEDDINGS
+    EMBEDDINGS --> QDRANT
+    QDRANT --> CHECK_SUMMARY
+    CHECK_SUMMARY -->|"Yes"| SLICE
+    CHECK_SUMMARY -->|"No"| RETRIEVE
+    SLICE --> ANSWER
+    RETRIEVE --> ANSWER
+    ANSWER --> CLEANUP
+    CLEANUP --> RESPONSE
+```
+
+**Libraries:**
+- `pdf-parse` for text extraction
+- `pdfjs-dist` bundled for page screenshots (vision OCR)
+- `@langchain/textsplitters` for chunking
+
+## AI Provider Routing
+
+```mermaid
+graph LR
+    subgraph Agent_Service["Agent Service :8003"]
+        GET_MODEL["getModel(agent)"]
+        GROQ["ChatGroq<br/>openai/gpt-oss-120b"]
+        GEMINI["ChatGoogleGenerativeAI<br/>gemini-2.5-flash"]
+        HF["HuggingFace<br/>FLUX.1-schnell"]
+    end
+
+    GET_MODEL -->|"chat, search"| GROQ
+    GET_MODEL -->|"coding, imageAnalyzer<br/>vision-ocr, pdf-rag"| GEMINI
+    GET_MODEL -->|"vision"| HF
+```
+
+Provider selection is hardcoded per agent via `getModel()` factory. No runtime fallback exists.
+
+## CI/CD Pipeline
+
+### GitHub Actions Workflow
+
+```mermaid
+graph TB
+    PUSH["Push to main<br/>branch"]
+    CHECKOUT["Checkout code"]
+    AWS_CREDS["Configure AWS<br/>credentials"]
+    ECR_LOGIN["Login to ECR"]
+    BUILD_GW["Build Gateway<br/>docker build"]
+    BUILD_AUTH["Build Auth<br/>docker build"]
+    BUILD_CHAT["Build Chat<br/>docker build"]
+    BUILD_AGENT["Build Agent<br/>docker build"]
+    BUILD_BILL["Build Billing<br/>docker build"]
+    PUSH_GW["Push gateway<br/>latest"]
+    PUSH_AUTH["Push auth-service<br/>latest"]
+    PUSH_CHAT["Push chat-service<br/>latest"]
+    PUSH_AGENT["Push agent-service<br/>latest"]
+    PUSH_BILL["Push billing-service<br/>latest"]
+    DEPLOY_GW["Deploy Gateway<br/>ECS force-new-deployment"]
+    DEPLOY_AUTH["Deploy Auth<br/>ECS force-new-deployment"]
+    DEPLOY_CHAT["Deploy Chat<br/>ECS force-new-deployment"]
+    DEPLOY_AGENT["Deploy Agent<br/>ECS force-new-deployment"]
+    DEPLOY_BILL["Deploy Billing<br/>ECS force-new-deployment"]
+
+    PUSH --> CHECKOUT
+    CHECKOUT --> AWS_CREDS
+    AWS_CREDS --> ECR_LOGIN
+    ECR_LOGIN --> BUILD_GW
+    BUILD_GW --> PUSH_GW
+    PUSH_GW --> BUILD_AUTH
+    BUILD_AUTH --> PUSH_AUTH
+    PUSH_AUTH --> BUILD_CHAT
+    BUILD_CHAT --> PUSH_CHAT
+    PUSH_CHAT --> BUILD_AGENT
+    BUILD_AGENT --> PUSH_AGENT
+    PUSH_AGENT --> BUILD_BILL
+    BUILD_BILL --> PUSH_BILL
+    PUSH_BILL --> DEPLOY_GW
+    DEPLOY_GW --> DEPLOY_AUTH
+    DEPLOY_AUTH --> DEPLOY_CHAT
+    DEPLOY_CHAT --> DEPLOY_AGENT
+    DEPLOY_AGENT --> DEPLOY_BILL
+```
+
+### ECS Deployment Topology
+
+```mermaid
+graph TB
+    subgraph AWS_VPC["AWS VPC"]
+        subgraph ECS_Cluster["ECS Cluster (Fargate)"]
+            GW_TASK["Gateway Task"]
+            AUTH_TASK["Auth Task"]
+            CHAT_TASK["Chat Task"]
+            AGENT_TASK["Agent Task"]
+            BILL_TASK["Billing Task"]
+        end
+
+        ALB["Application Load Balancer"]
+        SG_ALB["ALB Security Group"]
+        SG_ECS["ECS Security Group"]
+        ECR["ECR Registry"]
+        REDIS["ElastiCache Redis"]
+        S3["S3 Bucket<br/>PDF/Image Storage"]
+    end
+
+    subgraph Amplify["AWS Amplify"]
+        AMPLIFY["Frontend<br/>React SPA"]
+    end
+
+    Internet["Internet"] --> AMPLIFY
+    AMPLIFY --> ALB
+    ALB --> GW_TASK
+    ALB --> SG_ALB
+    SG_ALB --> SG_ECS
+    SG_ECS --> AUTH_TASK
+    SG_ECS --> CHAT_TASK
+    SG_ECS --> AGENT_TASK
+    SG_ECS --> BILL_TASK
+
+    GW_TASK --> AUTH_TASK
+    GW_TASK --> CHAT_TASK
+    GW_TASK --> AGENT_TASK
+    GW_TASK --> BILL_TASK
+
+    AUTH_TASK --> REDIS
+    CHAT_TASK --> REDIS
+    AGENT_TASK --> REDIS
+    AGENT_TASK --> S3
+
+    ECR --> GW_TASK
+    ECR --> AUTH_TASK
+    ECR --> CHAT_TASK
+    ECR --> AGENT_TASK
+    ECR --> BILL_TASK
+```
+
+**Workflow details:**
+- Trigger: Push to `main` branch
+- Tag strategy: `latest` only (no commit SHA)
+- Deployment: `aws ecs update-service --force-new-deployment` (no stability wait)
+- Amplify frontend: Managed separately via Amplify console
+
+**Required GitHub Secrets:**
+```
+AWS_REGION, AWS_ACCOUNT_ID, AWS_ACCESS_KEY, AWS_SECRET_ACCESS_KEY
+ECS_CLUSTER, GATEWAY_SERVICE, AUTH_SERVICE, CHAT_SERVICE, AGENT_SERVICE, BILLING_SERVICE
+```
+
+## Local Development
+
+### Start Redis
+```bash
+cd backend && docker compose up -d redis
+```
+
+### Start Backend Services
+```bash
+cd backend/gateway && node index.js          # :8000
+cd backend/services/auth && node index.js    # :8001
+cd backend/services/chat && node index.js     # :8002
+cd backend/services/agent && node index.js    # :8003
+cd backend/services/billing && node index.js  # :8004
+```
+
+### Start Frontend
+```bash
+cd frontend && npm install && npm run dev    # :5173
+```
+
+## Environment Variables
+
+### Gateway (`backend/gateway/.env`)
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Service port (8000) |
+| `AUTH_SERVICE` | Auth service URL |
+| `CHAT_SERVICE` | Chat service URL |
+| `AGENT_SERVICE` | Agent service URL |
+| `BILLING_SERVICE` | Billing service URL |
+| `FRONTEND_URL` | Frontend URL for CORS |
+| `REDIS_URL` | Redis connection URL |
+| `INTERNAL_API_SECRET` | Shared secret for service-to-service auth |
+
+### Auth Service (`backend/services/auth/.env`)
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Service port (8001) |
+| `MONGODB_URI` | MongoDB connection string |
+| `REDIS_URL` | Redis connection URL |
+| `INTERNAL_API_SECRET` | Shared secret |
+| `COOKIE_SECURE` | Secure cookie flag (false for local dev) |
+| `COOKIE_SAMESITE` | SameSite attribute (lax) |
+
+### Chat Service (`backend/services/chat/.env`)
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Service port (8002) |
+| `MONGODB_URI` | MongoDB connection string |
+| `REDIS_URL` | Redis connection URL |
+| `INTERNAL_API_SECRET` | Shared secret |
+
+### Agent Service (`backend/services/agent/.env`)
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Service port (8003) |
+| `MONGODB_URI` | MongoDB connection string |
+| `REDIS_URL` | Redis connection URL |
+| `INTERNAL_API_SECRET` | Shared secret |
+| `CHAT_SERVICE` | Chat service URL |
+| `AUTH_SERVICE` | Auth service URL |
+| `GROQ_API_KEY` | Groq API key |
+| `GOOGLE_API_KEY` | Gemini API key |
+| `OPENROUTER_API_KEY` | OpenRouter API key (unused) |
+| `TAVILY_API_KEY` | Tavily search API key |
+| `HF_TOKEN` | HuggingFace token |
+| `HUGGINGFACEHUB_API_KEY` | HuggingFace API key (embeddings) |
+| `QDRANT_URL` | Qdrant server URL |
+| `QDRANT_API_KEY` | Qdrant API key |
+| `AWS_REGION` | AWS region |
+| `AWS_ACCESS_KEY_ID` | AWS access key |
+| `AWS_SECRET_KEY` | AWS secret key |
+| `AWS_BUCKET_NAME` | S3 bucket name |
+
+### Billing Service (`backend/services/billing/.env`)
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Service port (8004) |
+| `MONGODB_URI` | MongoDB connection string |
+| `AUTH_SERVICE` | Auth service URL |
+| `INTERNAL_API_SECRET` | Shared secret |
+| `RAZORPAY_KEY_ID` | Razorpay key ID |
+| `RAZORPAY_KEY_SECRET` | Razorpay key secret |
+
+### Frontend (`frontend/.env`)
+| Variable | Description |
+|----------|-------------|
+| `VITE_SERVER_URL` | Backend gateway URL |
+| `VITE_FIREBASE_API_KEY` | Firebase API key |
+| `VITE_RAZORPAY_KEY_ID` | Razorpay key ID |
+
+## Repository Structure
 
 ```
-CortexAI/
+.
+├── .github/
+│   └── workflows/
+│       └── deploy.yml              # ECS deployment workflow
 ├── backend/
-│   ├── gateway/                     # API gateway — single public entry point
-│   │   ├── controllers/user.controller.js   # /api/me handler
-│   │   ├── middleware/auth.middleware.js    # Redis session cookie validation
-│   │   └── utils/proxyWithHeader.js        # Service proxy with x-user-id injection
+│   ├── gateway/                    # Express API gateway (port 8000)
+│   │   ├── controllers/
+│   │   ├── middleware/
+│   │   ├── utils/
+│   │   ├── index.js
+│   │   └── Dockerfile
 │   ├── services/
-│   │   ├── auth/                     # Identity, sessions, credit ledger
-│   │   │   ├── controllers/          # login, logout, reserveCredits, refundCredits
-│   │   │   ├── models/user.model.js  # Mongoose schema
-│   │   │   └── routes/              # POST /login, POST /logout (public) + /internal/* (service-only)
-│   │   ├── agent/                   # LangGraph orchestration + all AI agents
-│   │   │   ├── agents/             # chat, search, coding, pdf, ppt, vision, pdfRag
-│   │   │   ├── config/             # llmModels, memory, agentLimit, multer, s3, tavily
-│   │   │   ├── graph/              # StateGraph, router, agentState
-│   │   │   └── utils/             # deductCredits, generatePdf, generatePpt, s3
-│   │   ├── billing/                # Razorpay integration
-│   │   │   ├── controller/         # createOrder, verifyPayment
-│   │   │   └── models/payment.model.js  # unique orderId + sparse paymentId
-│   │   └── chat/                   # Conversation + message persistence
-│   │       ├── controllers/         # createConversation, getConversations, saveMessage
-│   │       └── models/             # conversation, message schemas
-│   └── shared/
-│       ├── auth/internalAuth.js    # requireUser, requireInternal, INTERNAL_HEADER
-│       ├── config/plans.js         # PLANS, PURCHASABLE_PLAN_IDS
-│       ├── config/agentCosts.js    # AGENT_COSTS (single source of truth)
-│       ├── http/cookies.js        # parseCookies, readCookie
-│       └── redis/redis.js         # ioredis singleton + global error handler
+│   │   ├── auth/                   # Auth + credit ledger (port 8001)
+│   │   │   ├── controllers/
+│   │   │   ├── models/
+│   │   │   ├── routes/
+│   │   │   ├── index.js
+│   │   │   └── Dockerfile
+│   │   ├── chat/                   # Conversations + messages (port 8002)
+│   │   │   ├── controllers/
+│   │   │   ├── models/
+│   │   │   ├── routes/
+│   │   │   ├── index.js
+│   │   │   └── Dockerfile
+│   │   ├── agent/                  # LangGraph + AI agents (port 8003)
+│   │   │   ├── agents/            # chat, search, coding, pdf, ppt, vision, pdfRag, imageAnalyzer
+│   │   │   ├── config/           # llmModels, memory, agentLimit, tavily, s3, embeddings, vectorDb
+│   │   │   ├── graph/            # graph.js, router.js, state.js
+│   │   │   ├── controllers/
+│   │   │   ├── utils/
+│   │   │   ├── index.js
+│   │   │   └── Dockerfile
+│   │   └── billing/               # Razorpay integration (port 8004)
+│   │       ├── controller/
+│   │       ├── models/
+│   │       ├── routes/
+│   │       ├── index.js
+│   │       └── Dockerfile
+│   ├── shared/
+│   │   ├── auth/                  # internalAuth.js (requireInternal, requireUser)
+│   │   ├── config/                # agentCosts.js, plans.js
+│   │   ├── http/                  # cookies.js
+│   │   └── redis/                 # redis.js
+│   ├── docker-compose.yml          # Redis container
+│   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── ChatArea.jsx        # Conversation view + message fetch
-│   │   │   ├── ChatInput.jsx       # Agent selector, voice input, file upload
-│   │   │   ├── SideBar.jsx        # Conversation list, billing drawer
-│   │   │   ├── MessageList.jsx     # Scroll-to-bottom, empty state
-│   │   │   ├── MessageBubble.jsx   # Markdown + code highlighting + image lightbox
-│   │   │   ├── Artifact.jsx        # Monaco editor + sandboxed iframe preview
-│   │   │   ├── BillingDrawer.jsx    # Plan selection + Razorpay checkout
-│   │   │   └── Toast.jsx           # AnimatePresence toast notifications
-│   │   ├── features/               # API call helpers (sendMessage, getMessages, createConversation…)
-│   │   ├── redux/                  # userSlice · conversationSlice (loadingConversationId) · messageSlice
-│   │   ├── pages/Home.jsx, AuthPage.jsx
-│   │   ├── contexts/ToastContext.jsx
-│   │   └── hooks/useToast.js
-│   └── utils/
-│       ├── axios.js               # API client with credentials
-│       ├── firebase.js            # Firebase app init + Google provider
-│       └── authErrors.js          # Firebase → user-friendly error messages
-└── docker-compose.yml             # Redis + Qdrant containers
+│   │   ├── components/            # React components
+│   │   ├── pages/                 # Home, AuthPage
+│   │   ├── features/              # Redux API calls (sendMessage, getMessages, etc.)
+│   │   ├── redux/                 # userSlice, conversationSlice, messageSlice
+│   │   ├── contexts/
+│   │   ├── hooks/
+│   │   └── utils/
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
+└── README.md
 ```
-
----
-
-## Environment Setup
-
-### Backend — `backend/.env`
-
-```env
-# Gateway
-PORT=8000
-FRONTEND_URL=http://localhost:5173
-INTERNAL_API_SECRET=<32+ char random string>
-
-# Service URLs (for gateway proxy)
-AUTH_SERVICE=http://localhost:8001
-CHAT_SERVICE=http://localhost:8002
-AGENT_SERVICE=http://localhost:8003
-BILLING_SERVICE=http://localhost:8004
-
-# Redis + MongoDB
-REDIS_URL=redis://localhost:6379
-MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>/cortexai
-
-# Firebase (from service account key JSON)
-FIREBASE_PROJECT_ID=cortex-ai-7ba05
-FIREBASE_PRIVATE_KEY=<base64>
-FIREBASE_CLIENT_EMAIL=<firebase-admin SDK email>
-
-# LLM Providers
-OPENAI_API_KEY=sk-...
-HF_TOKEN=hf_...
-TAVILY_API_KEY=tvly-...
-GROQ_API_KEY=gsk_...
-GOOGLE_GENAI_API_KEY=AIza...
-
-# AWS S3
-AWS_REGION=ap-south-1
-AWS_ACCESS_KEY_ID=AKIA...
-AWS_SECRET_KEY=...
-
-# Vector DB
-QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=<qdrant api key>   # Required for cloud-hosted Qdrant instances
-
-# Razorpay
-RAZORPAY_KEY_ID=<key_id>
-RAZORPAY_KEY_SECRET=<key_secret>
-```
-
-### Frontend — `frontend/.env`
-
-```env
-VITE_SERVER_URL=http://localhost:8000
-VITE_FIREBASE_API_KEY=<firebase api key>
-VITE_RAZORPAY_KEY_ID=<razorpay key id>
-```
-
----
-
-## Key Benefits
-
-| Benefit | How It's Achieved |
-|---------|-------------------|
-| **Zero Negative Balance** | Atomic MongoDB `findOneAndUpdate` with `credits >= cost` filter |
-| **No Free Work** | Credits reserved before any provider API call |
-| **Exactly-Once Refunds** | Redis reservation IDs with 15-min TTL prevent double-refunds |
-| **Service Isolation** | Microservices + API gateway = independent scaling & failure isolation |
-| **Upload Safety** | UUID filenames, allowlist mimetypes, path traversal checks |
-| **Secure Artifacts** | DOMPurify sanitize + sandboxed iframe preview |
-
----
 
 ## Security Model
 
 | Threat | Mitigation |
 |--------|------------|
-| Identity forgery | `x-user-id` written by gateway only; client-supplied headers stripped before proxy |
-| Session fixation | New login invalidates previous Redis session; UUID v4 format check before lookup |
-| Credit theft | Reservation debits before provider call; `credits >= cost` conditional update |
-| Credit inflation exploit | `refundCredits` requires a valid UUID v4 `reservationId`; unbacked refund calls rejected with HTTP 400 |
-| Double-charge (Search→Chat) | LangGraph state carries `creditsPreReserved` flag; Chat node skips re-deduction when set |
-| Payment replay | `status: "created"` compare-and-swap in MongoDB; HMAC signature + capture check |
-| Unauthenticated plan grant | Internal routes not proxied by gateway; require `x-internal-secret` (constant-time SHA-256 compare) |
-| Path traversal (uploads) | Filenames are UUIDs; extension from allowlist mimetype only; resolved path checked against upload dir |
-| Script injection in artifacts | DOMPurify sanitize on HTML only; JS passed raw inside `<iframe sandbox="allow-scripts">` without `allow-same-origin` |
-| SVG upload XSS | SVG mimetype rejected by `fileFilter`; only PNG/JPEG/WebP/GIF allowed |
+| Identity forgery | `x-user-id` written by gateway only; client-supplied headers stripped |
+| Session fixation | New login invalidates previous Redis session; UUID v4 format validation |
+| Credit theft | Credits debited before provider call; atomic `credits >= cost` conditional update |
+| Credit inflation | `refundCredits` requires valid UUID v4 `reservationId` |
+| Payment replay | `status: "created"` compare-and-swap; HMAC signature + capture verification |
+| Internal route exposure | Internal routes not proxied by gateway; require `x-internal-secret` header |
+| Path traversal | Filenames are UUIDs; extension from allowlist mimetype only |
+| Script injection | DOMPurify sanitize on HTML; sandboxed iframe without `allow-same-origin` |
 
----
+## Credit Costs
 
-## API Reference
+| Agent | Cost |
+|-------|------|
+| chat | 1 |
+| search | 5 |
+| coding | 10 |
+| pdf | 10 |
+| ppt | 10 |
+| vision | 10 |
+| pdfRag | 10 |
+| imageAnalyzer | 10 |
 
-### Auth
+## Rate Limits (per user)
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/api/auth/login` | None | Verify Firebase ID token, issue session cookie |
-| `POST` | `/api/auth/logout` | None | Clear session cookie + Redis keys |
-| `GET` | `/api/me` | Session | Current user object |
+| Agent | Limit |
+|-------|-------|
+| chat | 20/min |
+| coding | 5/min |
+| pdf | 5/min |
+| search | varies |
 
-> **Note:** `GET /api/auth/logout` was removed — a state-mutating GET is CSRF-triggerable under SameSite=Lax.
+## Operational Notes
 
-### Chat
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/chat/create-conversation` | New conversation |
-| `GET` | `/api/chat/get-conversations` | List (sorted by `updatedAt`) |
-| `POST` | `/api/chat/update-conversation` | Rename (owner-scoped) |
-| `POST` | `/api/chat/save-message` | Append message + artifacts |
-| `GET` | `/api/chat/get-messages/:id` | Paginated messages |
-
-> **Note:** `GET /api/chat/create-conversation` alias was removed — a state-mutating GET is CSRF-triggerable.
-
-### Agent
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/agent/chat` | `FormData`: `prompt`, `conversationId`, `agent`, `file?` |
-
-### Billing
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/billing/create` | Create Razorpay order |
-| `POST` | `/api/billing/verify` | Verify signature + capture + grant credits |
-
-
+- **Health endpoints:** Each service exposes `GET /` returning `{message: "Hello from <service>"}`
+- **Redis:** Used for sessions (24h TTL), conversation memory (24h sliding window, last 20 messages), rate limiting
+- **S3:** Presigned URLs for upload/download (10 min expiry for downloads)
+- **ECS deployment:** Uses `latest` tag; `--force-new-deployment` with no stability wait
+- **Qdrant collections:** Created per PDF RAG request, deleted after response
+- **Frontend:** AWS Amplify auto-deploys from repository main branch
